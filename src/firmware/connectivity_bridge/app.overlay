@@ -15,3 +15,10 @@
 		label = "CDC_ACM_1";
 	};
 };
+
+i2s_rx: &i2s0 {
+	status = "okay";
+	sck-pin = <6>; // sck
+	lrck-pin = <5>; // ws
+	sdin-pin = <27>; // sd
+};
