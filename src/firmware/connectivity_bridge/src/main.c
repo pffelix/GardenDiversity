@@ -39,14 +39,14 @@ uint8_t *usb_update_sn_string_descriptor(void)
 #include <string.h>
 
 #define I2S_RX_NODE DT_NODELABEL(i2s_rx)
-#define I2S_RX_TIMEOUT 1000
+#define I2S_RX_TIMEOUT 10000
 #define AUDIO_SAMPLE_FREQ 44100
 #define AUDIO_SAMPLES_PER_CH_PER_BUF 128
-#define AUDIO_NUM_CHANNELS 1
+#define AUDIO_NUM_CHANNELS 2
 #define AUDIO_SAMPLES_PER_BUF (AUDIO_SAMPLES_PER_CH_PER_BUF * AUDIO_NUM_CHANNELS)
-#define AUDIO_SAMPLE_BIT_WIDTH 16
+#define AUDIO_SAMPLE_BIT_WIDTH 24
 #define AUDIO_BUF_BYTES (AUDIO_SAMPLES_PER_BUF * AUDIO_SAMPLE_BIT_WIDTH / 8)
-#define AUDIO_BUF_COUNT 128
+#define AUDIO_BUF_COUNT 64
 #define AUDIO_BUF_BYTES_ALIGN 4
 K_MEM_SLAB_DEFINE(i2s_rx_mem_slab, AUDIO_BUF_BYTES, AUDIO_BUF_COUNT, AUDIO_BUF_BYTES_ALIGN);
 static const struct device *host_i2s_rx_dev;
@@ -90,21 +90,21 @@ void main(void)
 		LOG_ERR("i2s_trigger failed with %d error\n", ret);
 	}
 
-	/* receive data */
-	void *rx_mem_block;
-	size_t size;
+        void *rx_mem_block;
+        rx_mem_block = k_malloc(AUDIO_BUF_BYTES);
+        size_t size;
         int16_t sample;
-
 	while (true) {
-		ret = i2s_read(host_i2s_rx_dev, &rx_mem_block, &size);
+        	/* receive data */
+		ret = i2s_buf_read(host_i2s_rx_dev, rx_mem_block, &size);
         	if (ret != 0) {
         		LOG_ERR("i2s_read failed with %d error\n", ret);
         	}
                 for (int i = 0; i < AUDIO_SAMPLES_PER_BUF; ++i) {
-                        sample = ((int16_t *)rx_mem_block)[i];
+                        sample = ((int16_t *)rx_mem_block)[i] >> 16;
                 }
-		k_mem_slab_free(&i2s_rx_mem_slab, &rx_mem_block);
 	}
+        k_free(rx_mem_block);
 
         /*
         * Connectivity bridge
