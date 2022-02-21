@@ -19,6 +19,10 @@ static char *get_evt_type_str(enum cloud_module_event_type type)
 		return "CLOUD_EVT_CONNECTING";
 	case CLOUD_EVT_CONNECTION_TIMEOUT:
 		return "CLOUD_EVT_CONNECTION_TIMEOUT";
+	case CLOUD_EVT_USER_ASSOCIATION_REQUEST:
+		return "CLOUD_EVT_USER_ASSOCIATION_REQUEST";
+	case CLOUD_EVT_USER_ASSOCIATED:
+		return "CLOUD_EVT_USER_ASSOCIATED";
 	case CLOUD_EVT_CONFIG_RECEIVED:
 		return "CLOUD_EVT_CONFIG_RECEIVED";
 	case CLOUD_EVT_CONFIG_EMPTY:
@@ -27,8 +31,12 @@ static char *get_evt_type_str(enum cloud_module_event_type type)
 		return "CLOUD_EVT_DATA_ACK";
 	case CLOUD_EVT_SHUTDOWN_READY:
 		return "CLOUD_EVT_SHUTDOWN_READY";
+	case CLOUD_EVT_FOTA_START:
+		return "CLOUD_EVT_FOTA_START";
 	case CLOUD_EVT_FOTA_DONE:
 		return "CLOUD_EVT_FOTA_DONE";
+	case CLOUD_EVT_FOTA_ERROR:
+		return "CLOUD_EVT_FOTA_ERROR";
 	case CLOUD_EVT_ERROR:
 		return "CLOUD_EVT_ERROR";
 	default:
@@ -41,7 +49,8 @@ static int log_event(const struct event_header *eh, char *buf,
 {
 	const struct cloud_module_event *event = cast_cloud_module_event(eh);
 
-	return snprintf(buf, buf_len, "%s", get_evt_type_str(event->type));
+	EVENT_MANAGER_LOG(eh, "%s", get_evt_type_str(event->type));
+	return 0;
 }
 
 #if defined(CONFIG_PROFILER)

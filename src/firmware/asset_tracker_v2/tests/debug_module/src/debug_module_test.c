@@ -9,13 +9,14 @@
 #include <stdlib.h>
 #include <mock_modules_common.h>
 #include <mock_event_manager.h>
+#include <mock_event_manager_priv.h>
 #include <mock_watchdog_app.h>
 #include <memfault/metrics/mock_metrics.h>
 #include <memfault/core/mock_data_packetizer.h>
 #include <memfault/ports/mock_watchdog.h>
 
 #include "app_module_event.h"
-#include "gps_module_event.h"
+#include "gnss_module_event.h"
 #include "debug_module_event.h"
 #include "data_module_event.h"
 
@@ -26,7 +27,7 @@ extern struct event_listener __event_listener_debug_module;
  */
 static struct app_module_event app_module_event_memory;
 static struct data_module_event data_module_event_memory;
-static struct gps_module_event gps_module_event_memory;
+static struct gnss_module_event gnss_module_event_memory;
 static struct debug_module_event debug_module_event_memory;
 
 #define DEBUG_MODULE_EVT_HANDLER(eh) __event_listener_debug_module.notification(eh)
@@ -34,23 +35,23 @@ static struct debug_module_event debug_module_event_memory;
 /* Copy of the application specific Memfault metrics defined in
  * configuration/memfault/memfault_metrics_heartbeat_config.def
  */
-const char * const g_memfault_metrics_id_GpsTimeToFix;
-const char * const g_memfault_metrics_id_GpsSatellitesTracked;
-const char * const g_memfault_metrics_id_GpsTimeoutSearchTime;
+const char * const g_memfault_metrics_id_GnssTimeToFix;
+const char * const g_memfault_metrics_id_GnssSatellitesTracked;
+const char * const g_memfault_metrics_id_GnssTimeoutSearchTime;
 
 /* Dummy structs to please linker. The EVENT_SUBSCRIBE macros in debug_module.c
  * depend on these to exist. But since we are unit testing, we dont need
  * these subscriptions and hence these structs can remain uninitialized.
  */
-const struct event_type __event_type_gps_module_event;
-const struct event_type __event_type_debug_module_event;
-const struct event_type __event_type_app_module_event;
-const struct event_type __event_type_data_module_event;
-const struct event_type __event_type_cloud_module_event;
-const struct event_type __event_type_modem_module_event;
-const struct event_type __event_type_sensor_module_event;
-const struct event_type __event_type_ui_module_event;
-const struct event_type __event_type_util_module_event;
+struct event_type __event_type_gnss_module_event;
+struct event_type __event_type_debug_module_event;
+struct event_type __event_type_app_module_event;
+struct event_type __event_type_data_module_event;
+struct event_type __event_type_cloud_module_event;
+struct event_type __event_type_modem_module_event;
+struct event_type __event_type_sensor_module_event;
+struct event_type __event_type_ui_module_event;
+struct event_type __event_type_util_module_event;
 
 /* The following is required because unity is using a different main signature
  * (returns int) and zephyr expects main to not return value.
@@ -99,6 +100,7 @@ static void validate_debug_data_ready_evt(struct event_header *eh, int no_of_cal
 void setup_debug_module_in_init_state(void)
 {
 	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&app_module_event_memory);
+	__wrap_event_manager_free_ExpectAnyArgs();
 	struct app_module_event *app_module_event = new_app_module_event();
 
 	app_module_event->type = APP_EVT_START;
@@ -114,58 +116,63 @@ void setup_debug_module_in_init_state(void)
 	__wrap_module_start_ExpectAndReturn(&expected_module_data, 0);
 
 	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)app_module_event));
+	event_manager_free(app_module_event);
 }
 
-/* Test whether the correct Memfault metrics are set upon a GPS fix. */
-void test_memfault_trigger_metric_sampling_on_gps_fix(void)
+/* Test whether the correct Memfault metrics are set upon a GNSS fix. */
+void test_memfault_trigger_metric_sampling_on_gnss_fix(void)
 {
 	setup_debug_module_in_init_state();
 
 	__wrap_memfault_metrics_heartbeat_set_unsigned_ExpectAndReturn(
-						MEMFAULT_METRICS_KEY(GpsTimeToFix),
+						MEMFAULT_METRICS_KEY(GnssTimeToFix),
 						60000,
 						0);
 	__wrap_memfault_metrics_heartbeat_set_unsigned_ExpectAndReturn(
-						MEMFAULT_METRICS_KEY(GpsSatellitesTracked),
+						MEMFAULT_METRICS_KEY(GnssSatellitesTracked),
 						4,
 						0);
 	__wrap_memfault_metrics_heartbeat_debug_trigger_Expect();
 
-	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&gps_module_event_memory);
-	struct gps_module_event *gps_module_event = new_gps_module_event();
+	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&gnss_module_event_memory);
+	__wrap_event_manager_free_ExpectAnyArgs();
+	struct gnss_module_event *gnss_module_event = new_gnss_module_event();
 
-	gps_module_event->type = GPS_EVT_DATA_READY;
-	gps_module_event->data.gps.satellites_tracked = 4;
-	gps_module_event->data.gps.search_time = 60000;
+	gnss_module_event->type = GNSS_EVT_DATA_READY;
+	gnss_module_event->data.gnss.satellites_tracked = 4;
+	gnss_module_event->data.gnss.search_time = 60000;
 
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
+	event_manager_free(gnss_module_event);
 }
 
-/* Test whether the correct Memfault metrics are set upon a GPS timeout. */
-void test_memfault_trigger_metric_sampling_on_gps_timeout(void)
+/* Test whether the correct Memfault metrics are set upon a GNSS timeout. */
+void test_memfault_trigger_metric_sampling_on_gnss_timeout(void)
 {
 	resetTest();
 	setup_debug_module_in_init_state();
 
 	/* Update this function to expect the search time and number of satellites. */
 	__wrap_memfault_metrics_heartbeat_set_unsigned_ExpectAndReturn(
-						MEMFAULT_METRICS_KEY(GpsTimeoutSearchTime),
+						MEMFAULT_METRICS_KEY(GnssTimeoutSearchTime),
 						30000,
 						0);
 	__wrap_memfault_metrics_heartbeat_set_unsigned_ExpectAndReturn(
-						MEMFAULT_METRICS_KEY(GpsSatellitesTracked),
+						MEMFAULT_METRICS_KEY(GnssSatellitesTracked),
 						2,
 						0);
 	__wrap_memfault_metrics_heartbeat_debug_trigger_Ignore();
 
-	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&gps_module_event_memory);
-	struct gps_module_event *gps_module_event = new_gps_module_event();
+	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&gnss_module_event_memory);
+	__wrap_event_manager_free_ExpectAnyArgs();
+	struct gnss_module_event *gnss_module_event = new_gnss_module_event();
 
-	gps_module_event->type = GPS_EVT_TIMEOUT;
-	gps_module_event->data.gps.satellites_tracked = 2;
-	gps_module_event->data.gps.search_time = 30000;
+	gnss_module_event->type = GNSS_EVT_TIMEOUT;
+	gnss_module_event->data.gnss.satellites_tracked = 2;
+	gnss_module_event->data.gnss.search_time = 30000;
 
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
+	event_manager_free(gnss_module_event);
 }
 
 /* Test that the debug module is able to submit Memfault data externally through events
@@ -186,15 +193,17 @@ void test_memfault_trigger_data_send(void)
 	__wrap__event_submit_Stub(&validate_debug_data_ready_evt);
 
 	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&data_module_event_memory);
+	__wrap_event_manager_free_ExpectAnyArgs();
 	struct data_module_event *data_module_event = new_data_module_event();
 
 	data_module_event->type = DATA_EVT_DATA_SEND;
 
 	__wrap_event_manager_alloc_IgnoreAndReturn(&debug_module_event_memory);
 	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)data_module_event));
+	event_manager_free(data_module_event);
 }
 
-/* Test that no Memfault SDK specific APIs are called on GPS module events
+/* Test that no Memfault SDK specific APIs are called on GNSS module events
  * that should not be handled.
  */
 void test_memfault_unhandled_event(void)
@@ -202,25 +211,27 @@ void test_memfault_unhandled_event(void)
 	resetTest();
 	setup_debug_module_in_init_state();
 
-	/* Expect no memfault APIs to be called on GPS_EVT_ACTIVE */
+	/* Expect no memfault APIs to be called on GNSS_EVT_ACTIVE */
 
-	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&gps_module_event_memory);
-	struct gps_module_event *gps_module_event = new_gps_module_event();
+	__wrap_event_manager_alloc_ExpectAnyArgsAndReturn(&gnss_module_event_memory);
+	__wrap_event_manager_free_ExpectAnyArgs();
+	struct gnss_module_event *gnss_module_event = new_gnss_module_event();
 
-	gps_module_event->type = GPS_EVT_ACTIVE;
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	gnss_module_event->type = GNSS_EVT_ACTIVE;
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
 
-	gps_module_event->type = GPS_EVT_INACTIVE;
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	gnss_module_event->type = GNSS_EVT_INACTIVE;
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
 
-	gps_module_event->type = GPS_EVT_SHUTDOWN_READY;
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	gnss_module_event->type = GNSS_EVT_SHUTDOWN_READY;
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
 
-	gps_module_event->type = GPS_EVT_AGPS_NEEDED;
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	gnss_module_event->type = GNSS_EVT_AGPS_NEEDED;
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
 
-	gps_module_event->type = GPS_EVT_ERROR_CODE;
-	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gps_module_event));
+	gnss_module_event->type = GNSS_EVT_ERROR_CODE;
+	TEST_ASSERT_EQUAL(0, DEBUG_MODULE_EVT_HANDLER((struct event_header *)gnss_module_event));
+	event_manager_free(gnss_module_event);
 }
 
 /* Test whether the correct Memfault software watchdog APIs are called on callbacks from the

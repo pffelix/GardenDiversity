@@ -16,9 +16,12 @@ target_sources(app PRIVATE src/main.c)
 # Include application events and disk files
 zephyr_library_include_directories(
   src/events
+  src/microphone/i2s
+  src/microphone/pdm
   )
 
 # Application sources
 add_subdirectory(src/disk)
 add_subdirectory(src/events)
 add_subdirectory(src/modules)
+add_subdirectory(src/microphone)

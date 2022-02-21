@@ -4,15 +4,22 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
+ 
+ /*
+ * Asset Tracker v2
+ */
+
+
 #include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <event_manager.h>
 #include <modem/nrf_modem_lib.h>
+#include <sys/reboot.h>
 
-#if defined(CONFIG_WATCHDOG_APPLICATION)
-#include "watchdog_app.h"
+#if defined(CONFIG_NRF_CLOUD_AGPS) || defined(CONFIG_NRF_CLOUD_PGPS)
+#include <net/nrf_cloud_agps.h>
 #endif
 
 /* Module name is used by the event manager macros in this file */
@@ -60,10 +67,10 @@ static enum state_type {
 /* Application sub states. The application can be in either active or passive
  * mode.
  *
- * Active mode: Sensor data and GPS position is acquired at a configured
+ * Active mode: Sensor data and GNSS position is acquired at a configured
  *		interval and sent to cloud.
  *
- * Passive mode: Sensor data and GPS position is acquired when movement is
+ * Passive mode: Sensor data and GNSS position is acquired when movement is
  *		 detected, or after the configured movement timeout occurs.
  */
 static enum sub_state_type {
@@ -99,7 +106,7 @@ K_TIMER_DEFINE(movement_timeout_timer, data_sample_timer_handler, NULL);
 
 /* Movement resolution timer decides the period after movement that consecutive
  * movements are ignored and do not cause data collection. This is used to
- * lower power consumption by limiting how often GPS search is performed and
+ * lower power consumption by limiting how often GNSS search is performed and
  * data is sent on air.
  */
 K_TIMER_DEFINE(movement_resolution_timer, waiting_for_movement_handler, NULL);
@@ -274,6 +281,50 @@ static bool event_handler(const struct event_header *eh)
 	return false;
 }
 
+static bool is_agps_processed(void)
+{
+#if defined(CONFIG_NRF_CLOUD_AGPS) || defined(CONFIG_NRF_CLOUD_PGPS)
+	struct nrf_modem_gnss_agps_data_frame processed;
+
+	nrf_cloud_agps_processed(&processed);
+
+	if (!processed.sv_mask_ephe) {
+		return false;
+	}
+
+#endif /* CONFIG_NRF_CLOUD_AGPS || CONFIG_NRF_CLOUD_PGPS */
+
+	return true;
+}
+
+static bool request_gnss(void)
+{
+	uint32_t uptime_current_ms = k_uptime_get();
+	int agps_wait_threshold_ms = CONFIG_APP_REQUEST_GNSS_WAIT_FOR_AGPS_THRESHOLD_SEC *
+				     MSEC_PER_SEC;
+
+	if (!IS_ENABLED(CONFIG_APP_REQUEST_GNSS_WAIT_FOR_AGPS)) {
+		return true;
+	} else if (agps_wait_threshold_ms < 0) {
+		/* If CONFIG_APP_REQUEST_GNSS_WAIT_FOR_AGPS_THRESHOLD_SEC is set to -1,
+		 * we need to notify the data module that the application module is awaiting
+		 * A-GPS data in order to request GNSS. If not, GNSS will never be
+		 * requested if the initial A-GPS data request fails.
+		 */
+		if (is_agps_processed()) {
+			return true;
+		}
+
+		SEND_EVENT(app, APP_EVT_AGPS_NEEDED);
+		return false;
+
+	} else if ((agps_wait_threshold_ms < uptime_current_ms) || is_agps_processed()) {
+		return true;
+	}
+
+	return false;
+}
+
 static void data_sample_timer_handler(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
@@ -327,10 +378,10 @@ static void data_get(void)
 	struct app_module_event *app_module_event = new_app_module_event();
 	size_t count = 0;
 
-	/* Specify a timeout that each module has to fetch data. If data is not
-	 * fetched within this timeout, the data that is available is sent.
+	/* Set a low sample timeout. If GNSS is requested, the sample timeout will be increased to
+	 * accommodate the GNSS timeout.
 	 */
-	app_module_event->timeout = 10;
+	app_module_event->timeout = 1;
 
 	/* Specify which data that is to be included in the transmission. */
 	app_module_event->data_list[count++] = APP_DATA_MODEM_DYNAMIC;
@@ -341,32 +392,42 @@ static void data_get(void)
 		app_module_event->data_list[count++] = APP_DATA_NEIGHBOR_CELLS;
 	}
 
-	/* The reason for having at least 75 seconds timeout in the case of requesting GNSS data
-	 * is that the GNSS module in nRF9160 will always search for at least 60 seconds for the
-	 * first position fix after a reboot.
+	/* The reason for having at least 75 seconds sample timeout when
+	 * requesting GNSS data is that the GNSS module on the nRF9160 modem will always
+	 * search for at least 60 seconds for the first position fix after a reboot. This limit
+	 * is enforced in order to give the modem time to perform scheduled downloads of
+	 * A-GPS data from the GNSS satellites.
 	 *
-	 * The addition of 15 seconds to the configured GPS timeout is done
-	 * to let the GPS module run the currently ongoing search until
-	 * the end. If the timeout for sending data is exactly the same as for
-	 * the GPS search, a fix occurring at the same time as timeout is
-	 * triggered will be missed and not sent to cloud before the next
-	 * interval has  passed in active mode, or until next movement in
-	 * passive mode.
+	 * However, if A-GPS data has been downloaded via the cloud connection and processed
+	 * before the initial GNSS search, the actual GNSS timeout set by the application is used.
+	 *
+	 * Processing A-GPS before requesting GNSS data is enabled by default,
+	 * and the time that the application will wait for A-GPS data before including GNSS
+	 * in sample requests can be adjusted via the
+	 * CONFIG_APP_REQUEST_GNSS_WAIT_FOR_AGPS_THRESHOLD_SEC Kconfig option. If this option is
+	 * set to -1, the application module will not request GNSS unless A-GPS data has been
+	 * processed.
+	 *
+	 * If A-GPS data has been processed the sample timeout can be ignored as the
+	 * GNSS will most likely time out before the sample timeout expires.
+	 *
+	 * When GNSS is requested, set the sample timeout to (GNSS timeout + 15 seconds)
+	 * to let the GNSS module finish ongoing searches before data is sent to cloud.
 	 */
 
 	if (first) {
-		if (IS_ENABLED(CONFIG_APP_REQUEST_GPS_ON_INITIAL_SAMPLING) &&
+		if (IS_ENABLED(CONFIG_APP_REQUEST_GNSS_ON_INITIAL_SAMPLING) && request_gnss() &&
 		    !app_cfg.no_data.gnss) {
 			app_module_event->data_list[count++] = APP_DATA_GNSS;
-			app_module_event->timeout = MAX(app_cfg.gps_timeout + 15, 75);
+			app_module_event->timeout = MAX(app_cfg.gnss_timeout + 15, 75);
 		}
 
 		app_module_event->data_list[count++] = APP_DATA_MODEM_STATIC;
 		first = false;
 	} else {
-		if (!app_cfg.no_data.gnss) {
+		if (request_gnss() && !app_cfg.no_data.gnss) {
 			app_module_event->data_list[count++] = APP_DATA_GNSS;
-			app_module_event->timeout = MAX(app_cfg.gps_timeout + 15, 75);
+			app_module_event->timeout = MAX(app_cfg.gnss_timeout + 15, 75);
 		}
 	}
 
@@ -399,7 +460,7 @@ static void on_state_init(struct app_msg_data *msg)
 /* Message handler for STATE_RUNNING. */
 static void on_state_running(struct app_msg_data *msg)
 {
-	if (IS_EVENT(msg, data, DATA_EVT_DATE_TIME_OBTAINED)) {
+	if (IS_EVENT(msg, cloud, CLOUD_EVT_CONNECTED)) {
 		data_get();
 	}
 
@@ -474,8 +535,80 @@ static void on_all_events(struct app_msg_data *msg)
 	}
 }
 
+/*
+* UART communication between nrf52840 and nrf9160
+*/
+
+#include <sys/printk.h>
+#include <drivers/uart.h>
+#include <string.h>
+
+static uint8_t uart_buf[1024];
+static struct device *uart_dev; //Figure out why you should/should not use static
+struct uart_config uart_cfg;
+int uart_ret;
+
+int send_data(const uint8_t *buf, size_t size)
+{
+	//printk("size of output_buffer: %d\n", size);
+	if (size == 0) {
+		return 0;
+	}
+	for(int i = 0; i < size; i++){
+		//printk("Writing %c on position %d\n", buf[i], i);
+		uart_poll_out(uart_dev, buf[i]);
+	}
+
+	return 0;
+}
+
+void uart_cb(struct device *x)
+{
+	uart_irq_update(x);
+	int data_length = 0;
+
+	if (uart_irq_rx_ready(x)) {
+		data_length = uart_fifo_read(x, uart_buf, sizeof(uart_buf));
+		uart_buf[data_length] = 0;
+	}
+	printk("%s", uart_buf);
+
+}
+
+
+
 void main(void)
 {
+
+        /*
+        * UART communication between nrf52840 and nrf9160
+        */
+	char hey[] = "hey from 9160 \n";
+	
+	uart_dev = device_get_binding("UART_0");
+        if (!uart_dev) {
+          printk("Could not get UART 0\n");
+	}
+
+        uart_ret = uart_config_get(uart_dev, &uart_cfg);
+        uart_cfg.baudrate = 1000000;
+        uart_cfg.flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS;
+        uart_ret = uart_configure(uart_dev, &uart_cfg);
+	uart_irq_callback_set(uart_dev, uart_cb);
+	uart_irq_rx_enable(uart_dev);
+	printk("UART 9160 start!\n");
+	
+	while (1) {
+		send_data(hey, sizeof(hey));
+		k_sleep(K_MSEC(1000));
+	}
+
+
+
+        /*
+        * Asset Tracker v2
+        */
+
 	int err;
 	struct app_msg_data msg;
 
@@ -502,14 +635,6 @@ void main(void)
 		LOG_ERR("Failed starting module, error: %d", err);
 		SEND_ERROR(app, APP_EVT_ERROR, err);
 	}
-
-#if defined(CONFIG_WATCHDOG_APPLICATION)
-	err = watchdog_init_and_start();
-	if (err) {
-		LOG_DBG("watchdog_init_and_start, error: %d", err);
-		SEND_ERROR(app, APP_EVT_ERROR, err);
-	}
-#endif
 
 	while (true) {
 		module_get_next_msg(&self, &msg);

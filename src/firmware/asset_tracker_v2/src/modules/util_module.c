@@ -6,21 +6,25 @@
 
 #include <zephyr.h>
 #include <sys/reboot.h>
+#include <device.h>
 #include <logging/log.h>
+#include <logging/log_ctrl.h>
 
 #define MODULE util_module
 
+#if defined(CONFIG_WATCHDOG_APPLICATION)
+#include "watchdog_app.h"
+#endif
 #include "modules_common.h"
 #include "events/app_module_event.h"
 #include "events/cloud_module_event.h"
 #include "events/data_module_event.h"
 #include "events/sensor_module_event.h"
 #include "events/util_module_event.h"
-#include "events/gps_module_event.h"
+#include "events/gnss_module_event.h"
 #include "events/modem_module_event.h"
 #include "events/ui_module_event.h"
 
-#include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_UTIL_MODULE_LOG_LEVEL);
 
 struct util_msg_data {
@@ -30,7 +34,7 @@ struct util_msg_data {
 		struct sensor_module_event sensor;
 		struct data_module_event data;
 		struct app_module_event app;
-		struct gps_module_event gps;
+		struct gnss_module_event gnss;
 		struct modem_module_event modem;
 	} module;
 };
@@ -102,10 +106,10 @@ static bool event_handler(const struct event_header *eh)
 		message_handler(&util_msg);
 	}
 
-	if (is_gps_module_event(eh)) {
-		struct gps_module_event *event = cast_gps_module_event(eh);
+	if (is_gnss_module_event(eh)) {
+		struct gnss_module_event *event = cast_gnss_module_event(eh);
 		struct util_msg_data util_msg = {
-			.module.gps = *event
+			.module.gnss = *event
 		};
 
 		message_handler(&util_msg);
@@ -226,6 +230,22 @@ static void reboot_ack_check(uint32_t module_id)
 	}
 }
 
+static int setup(const struct device *dev)
+{
+	ARG_UNUSED(dev);
+
+#if defined(CONFIG_WATCHDOG_APPLICATION)
+	int err = watchdog_init_and_start();
+
+	if (err) {
+		LOG_DBG("watchdog_init_and_start, error: %d", err);
+		send_reboot_request(REASON_GENERIC);
+	}
+#endif
+
+	return 0;
+}
+
 /* Message handler for STATE_INIT. */
 static void on_state_init(struct util_msg_data *msg)
 {
@@ -233,14 +253,14 @@ static void on_state_init(struct util_msg_data *msg)
 		send_reboot_request(REASON_FOTA_UPDATE);
 	}
 
-	if ((IS_EVENT(msg, cloud,  CLOUD_EVT_ERROR))	||
-	    (IS_EVENT(msg, modem,  MODEM_EVT_ERROR))	||
+	if ((IS_EVENT(msg, cloud, CLOUD_EVT_ERROR))	||
+	    (IS_EVENT(msg, modem, MODEM_EVT_ERROR))	||
 	    (IS_EVENT(msg, sensor, SENSOR_EVT_ERROR))	||
-	    (IS_EVENT(msg, gps,	   GPS_EVT_ERROR_CODE))	||
-	    (IS_EVENT(msg, data,   DATA_EVT_ERROR))	||
-	    (IS_EVENT(msg, app,	   APP_EVT_ERROR))	||
-	    (IS_EVENT(msg, ui,	   UI_EVT_ERROR))	||
-	    (IS_EVENT(msg, modem,  MODEM_EVT_CARRIER_REBOOT_REQUEST))) {
+	    (IS_EVENT(msg, gnss, GNSS_EVT_ERROR_CODE))	||
+	    (IS_EVENT(msg, data, DATA_EVT_ERROR))	||
+	    (IS_EVENT(msg, app, APP_EVT_ERROR))		||
+	    (IS_EVENT(msg, ui, UI_EVT_ERROR))		||
+	    (IS_EVENT(msg, modem, MODEM_EVT_CARRIER_REBOOT_REQUEST))) {
 		send_reboot_request(REASON_GENERIC);
 		return;
 	}
@@ -264,8 +284,8 @@ static void on_state_reboot_pending(struct util_msg_data *msg)
 		return;
 	}
 
-	if (IS_EVENT(msg, gps, GPS_EVT_SHUTDOWN_READY)) {
-		reboot_ack_check(msg->module.gps.data.id);
+	if (IS_EVENT(msg, gnss, GNSS_EVT_SHUTDOWN_READY)) {
+		reboot_ack_check(msg->module.gnss.data.id);
 		return;
 	}
 
@@ -321,7 +341,9 @@ EVENT_LISTENER(MODULE, event_handler);
 EVENT_SUBSCRIBE_EARLY(MODULE, app_module_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, modem_module_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, cloud_module_event);
-EVENT_SUBSCRIBE_EARLY(MODULE, gps_module_event);
+EVENT_SUBSCRIBE_EARLY(MODULE, gnss_module_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, ui_module_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, sensor_module_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, data_module_event);
+
+SYS_INIT(setup, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);

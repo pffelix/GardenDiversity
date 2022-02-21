@@ -11,8 +11,6 @@
 #include <math.h>
 #include <modem/lte_lc.h>
 #include <modem/modem_info.h>
-#include <modem/at_cmd.h>
-#include <modem/at_notif.h>
 
 #define MODULE modem_module
 
@@ -35,6 +33,13 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_MODEM_MODULE_LOG_LEVEL);
 BUILD_ASSERT(!IS_ENABLED(CONFIG_LTE_AUTO_INIT_AND_CONNECT),
 		"The Modem module does not support this configuration");
 
+#ifdef CONFIG_APP_REQUEST_NEIGHBOR_CELLS_DATA
+BUILD_ASSERT(CONFIG_AT_MONITOR_HEAP_SIZE >= 1024,
+	    "CONFIG_AT_MONITOR_HEAP_SIZE must be >= 1024 to fit neighbor cell measurements "
+	    "and other notifications at the same time");
+#endif
+
+
 struct modem_msg_data {
 	union {
 		struct app_module_event app;
@@ -56,11 +61,23 @@ static enum state_type {
 	STATE_SHUTDOWN,
 } state;
 
+/* Enumerator that specifies the data type that is sampled. */
+enum sample_type {
+	NEIGHBOR_CELL,
+	MODEM_DYNAMIC,
+	MODEM_STATIC,
+	BATTERY_VOLTAGE
+};
+
 /* Struct that holds data from the modem information module. */
 static struct modem_param_info modem_param;
 
-/* Value that always holds the latest RSRP value. */
+/* Value that holds the latest RSRP value. */
 static int16_t rsrp_value_latest;
+
+/* Value that holds the latest LTE network mode. */
+static enum lte_lc_lte_mode nw_mode_latest;
+
 const k_tid_t module_thread;
 
 /* Modem module message queue. */
@@ -81,7 +98,7 @@ static void send_cell_update(uint32_t cell_id, uint32_t tac);
 static void send_neighbor_cell_update(struct lte_lc_cells_info *cell_info);
 static void send_psm_update(int tau, int active_time);
 static void send_edrx_update(float edrx, float ptw);
-static inline int adjust_rsrp(int input);
+static inline int adjust_rsrp(int input, enum sample_type type);
 static inline int adjust_rsrq(int input);
 
 /* Convenience functions used in internal state handling. */
@@ -224,6 +241,9 @@ static void lte_evt_handler(const struct lte_lc_evt *const evt)
 			LOG_DBG("Neighbor cell measurement was not successful");
 		}
 		break;
+	case LTE_LC_EVT_LTE_MODE_UPDATE:
+		nw_mode_latest = evt->lte_mode;
+		break;
 	default:
 		break;
 	}
@@ -244,7 +264,7 @@ static void modem_rsrp_handler(char rsrp_value)
 	 * This temporarily saves the latest value which are sent to
 	 * the Data module upon a modem data request.
 	 */
-	rsrp_value_latest = adjust_rsrp(rsrp_value);
+	rsrp_value_latest = adjust_rsrp(rsrp_value, MODEM_DYNAMIC);
 
 	LOG_DBG("Incoming RSRP status message, RSRP value is %d",
 		rsrp_value_latest);
@@ -304,6 +324,8 @@ static void print_carrier_deferred_reason(const lwm2m_carrier_event_t *evt)
 			"Server registration sequence not completed",
 		[LWM2M_CARRIER_DEFERRED_SERVICE_UNAVAILABLE] =
 			"Server in maintenance mode",
+		[LWM2M_CARRIER_DEFERRED_SIM_MSISDN] =
+			"Waiting for SIM MSISDN",
 	};
 
 	__ASSERT(PART_OF_ARRAY(strdef, &strdef[def->reason]),
@@ -419,10 +441,22 @@ static void send_edrx_update(float edrx, float ptw)
 	EVENT_SUBMIT(evt);
 }
 
-static inline int adjust_rsrp(int input)
+static inline int adjust_rsrp(int input, enum sample_type type)
 {
-	if (IS_ENABLED(CONFIG_MODEM_CONVERT_RSRP_AND_RSPQ_TO_DB)) {
-		return input - 140;
+	switch (type) {
+	case NEIGHBOR_CELL:
+		if (IS_ENABLED(CONFIG_MODEM_NEIGHBOR_CELLS_DATA_CONVERT_RSRP_TO_DBM)) {
+			return input - 140;
+		}
+		break;
+	case MODEM_DYNAMIC:
+		if (IS_ENABLED(CONFIG_MODEM_DYNAMIC_DATA_CONVERT_RSRP_TO_DBM)) {
+			return input - 140;
+		}
+		break;
+	default:
+		LOG_WRN("Unknown sample type");
+		break;
 	}
 
 	return input;
@@ -430,7 +464,7 @@ static inline int adjust_rsrp(int input)
 
 static inline int adjust_rsrq(int input)
 {
-	if (IS_ENABLED(CONFIG_MODEM_CONVERT_RSRP_AND_RSPQ_TO_DB)) {
+	if (IS_ENABLED(CONFIG_MODEM_NEIGHBOR_CELLS_DATA_CONVERT_RSRQ_TO_DB)) {
 		return round(input * 0.5 - 19.5);
 	}
 
@@ -452,13 +486,15 @@ static void send_neighbor_cell_update(struct lte_lc_cells_info *cell_info)
 
 	/* Convert RSRP to dBm and RSRQ to dB per "nRF91 AT Commands" v1.7. */
 	evt->data.neighbor_cells.cell_data.current_cell.rsrp =
-			adjust_rsrp(evt->data.neighbor_cells.cell_data.current_cell.rsrp);
+			adjust_rsrp(evt->data.neighbor_cells.cell_data.current_cell.rsrp,
+				    NEIGHBOR_CELL);
 	evt->data.neighbor_cells.cell_data.current_cell.rsrq =
 			adjust_rsrq(evt->data.neighbor_cells.cell_data.current_cell.rsrq);
 
 	for (size_t i = 0; i < evt->data.neighbor_cells.cell_data.ncells_count; i++) {
 		evt->data.neighbor_cells.neighbor_cells[i].rsrp =
-			adjust_rsrp(evt->data.neighbor_cells.neighbor_cells[i].rsrp);
+			adjust_rsrp(evt->data.neighbor_cells.neighbor_cells[i].rsrp,
+				    NEIGHBOR_CELL);
 		evt->data.neighbor_cells.neighbor_cells[i].rsrq =
 			adjust_rsrq(evt->data.neighbor_cells.neighbor_cells[i].rsrq);
 	}
@@ -482,11 +518,6 @@ static int static_modem_data_get(void)
 
 	struct modem_module_event *modem_module_event = new_modem_module_event();
 
-	modem_module_event->data.modem_static.nw_mode_ltem = modem_param.network.lte_mode.value;
-	modem_module_event->data.modem_static.nw_mode_nbiot = modem_param.network.nbiot_mode.value;
-	modem_module_event->data.modem_static.nw_mode_gps = modem_param.network.gps_mode.value;
-	modem_module_event->data.modem_static.band = modem_param.network.current_band.value;
-
 	strncpy(modem_module_event->data.modem_static.app_version,
 		CONFIG_ASSET_TRACKER_V2_APP_VERSION,
 		sizeof(modem_module_event->data.modem_static.app_version) - 1);
@@ -503,6 +534,10 @@ static int static_modem_data_get(void)
 		modem_param.sim.iccid.value_string,
 		sizeof(modem_module_event->data.modem_static.iccid) - 1);
 
+	strncpy(modem_module_event->data.modem_static.imei,
+		modem_param.device.imei.value_string,
+		sizeof(modem_module_event->data.modem_static.imei) - 1);
+
 	modem_module_event->data.modem_static.app_version
 		[sizeof(modem_module_event->data.modem_static.app_version) - 1] = '\0';
 
@@ -514,6 +549,9 @@ static int static_modem_data_get(void)
 
 	modem_module_event->data.modem_static.iccid
 		[sizeof(modem_module_event->data.modem_static.iccid) - 1] = '\0';
+
+	modem_module_event->data.modem_static.imei
+		[sizeof(modem_module_event->data.modem_static.imei) - 1] = '\0';
 
 	modem_module_event->data.modem_static.timestamp = k_uptime_get();
 	modem_module_event->type = MODEM_EVT_MODEM_STATIC_DATA_READY;
@@ -542,7 +580,10 @@ static void populate_event_with_dynamic_modem_data(struct modem_module_event *ev
 	/* Structure that holds previous sampled dynamic modem data. By default, set all members of
 	 * the structure to invalid values.
 	 */
-	static struct modem_module_dynamic_modem_data prev = { .rsrp = UINT8_MAX };
+	static struct modem_module_dynamic_modem_data prev = {
+		.rsrp = UINT8_MAX,
+		.nw_mode = LTE_LC_LTE_MODE_NONE,
+	};
 
 	/* Compare the latest sampled parameters with the previous. If there has been a change we
 	 * want to include the parameters in the event.
@@ -552,6 +593,22 @@ static void populate_event_with_dynamic_modem_data(struct modem_module_event *ev
 		prev.rsrp = rsrp_value_latest;
 
 		event->data.modem_dynamic.rsrp_fresh = true;
+		params_added = true;
+	}
+
+	if ((prev.band != param->network.current_band.value) || include) {
+		event->data.modem_dynamic.band = param->network.current_band.value;
+		prev.band = param->network.current_band.value;
+
+		event->data.modem_dynamic.band_fresh = true;
+		params_added = true;
+	}
+
+	if ((prev.nw_mode != nw_mode_latest) || include) {
+		event->data.modem_dynamic.nw_mode = nw_mode_latest;
+		prev.nw_mode = nw_mode_latest;
+
+		event->data.modem_dynamic.nw_mode_fresh = true;
 		params_added = true;
 	}
 
@@ -634,47 +691,12 @@ static int dynamic_modem_data_get(void)
 	return 0;
 }
 
-static bool static_modem_data_requested(enum app_module_data_type *data_list,
-					size_t count)
+static bool data_type_is_requested(enum app_module_data_type *data_list,
+				   size_t count,
+				   enum app_module_data_type type)
 {
 	for (size_t i = 0; i < count; i++) {
-		if (data_list[i] == APP_DATA_MODEM_STATIC) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool dynamic_modem_data_requested(enum app_module_data_type *data_list,
-					 size_t count)
-{
-	for (size_t i = 0; i < count; i++) {
-		if (data_list[i] == APP_DATA_MODEM_DYNAMIC) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool battery_data_requested(enum app_module_data_type *data_list,
-				   size_t count)
-{
-	for (size_t i = 0; i < count; i++) {
-		if (data_list[i] == APP_DATA_BATTERY) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool neighbor_cells_data_requested(enum app_module_data_type *data_list,
-				     size_t count)
-{
-	for (size_t i = 0; i < count; i++) {
-		if (data_list[i] == APP_DATA_NEIGHBOR_CELLS) {
+		if (data_list[i] == type) {
 			return true;
 		}
 	}
@@ -724,14 +746,19 @@ static int neighbor_cells_measurement_start(void)
 static int configure_low_power(void)
 {
 	int err;
+	bool enable = IS_ENABLED(CONFIG_MODEM_AUTO_REQUEST_POWER_SAVING_FEATURES);
 
-	err = lte_lc_psm_req(true);
+	err = lte_lc_psm_req(enable);
 	if (err) {
 		LOG_ERR("lte_lc_psm_req, error: %d", err);
 		return err;
 	}
 
-	LOG_DBG("PSM requested");
+	if (enable) {
+		LOG_DBG("PSM requested");
+	} else {
+		LOG_DBG("PSM disabled");
+	}
 
 	return 0;
 }
@@ -789,12 +816,10 @@ static int setup(void)
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_MODEM_AUTO_REQUEST_POWER_SAVING_FEATURES)) {
-		err = configure_low_power();
-		if (err) {
-			LOG_ERR("configure_low_power, error: %d", err);
-			return err;
-		}
+	err = configure_low_power();
+	if (err) {
+		LOG_ERR("configure_low_power, error: %d", err);
+		return err;
 	}
 
 	err = modem_data_init();
@@ -813,12 +838,6 @@ static void on_state_init(struct modem_msg_data *msg)
 		int err;
 
 		state_set(STATE_DISCONNECTED);
-
-		err = at_cmd_init();
-		__ASSERT(err == 0, "Failed initializing at_cmd");
-
-		err = at_notif_init();
-		__ASSERT(err == 0, "Failed initializing at_notif");
 
 		err = setup();
 		__ASSERT(err == 0, "Failed running setup()");
@@ -871,6 +890,26 @@ static void on_state_connected(struct modem_msg_data *msg)
 /* Message handler for all states. */
 static void on_all_states(struct modem_msg_data *msg)
 {
+	if (IS_EVENT(msg, cloud, CLOUD_EVT_USER_ASSOCIATION_REQUEST)) {
+		int err = lte_lc_psm_req(false);
+
+		if (err) {
+			LOG_ERR("lte_lc_psm_req, error: %d", err);
+			SEND_ERROR(modem, MODEM_EVT_ERROR, err);
+		}
+	}
+
+	if (IS_EVENT(msg, cloud, CLOUD_EVT_USER_ASSOCIATED)) {
+
+		/* Re-enable low power features after cloud has been associated. */
+		int err = configure_low_power();
+
+		if (err) {
+			LOG_ERR("configure_low_power, error: %d", err);
+			SEND_ERROR(modem, MODEM_EVT_ERROR, err);
+		}
+	}
+
 	if (IS_EVENT(msg, app, APP_EVT_START)) {
 		int err;
 
@@ -890,8 +929,9 @@ static void on_all_states(struct modem_msg_data *msg)
 	}
 
 	if (IS_EVENT(msg, app, APP_EVT_DATA_GET)) {
-		if (static_modem_data_requested(msg->module.app.data_list,
-						msg->module.app.count)) {
+		if (data_type_is_requested(msg->module.app.data_list,
+					   msg->module.app.count,
+					   APP_DATA_MODEM_STATIC)) {
 
 			int err;
 
@@ -902,8 +942,9 @@ static void on_all_states(struct modem_msg_data *msg)
 			}
 		}
 
-		if (dynamic_modem_data_requested(msg->module.app.data_list,
-						 msg->module.app.count)) {
+		if (data_type_is_requested(msg->module.app.data_list,
+					   msg->module.app.count,
+					   APP_DATA_MODEM_DYNAMIC)) {
 
 			int err;
 
@@ -914,8 +955,9 @@ static void on_all_states(struct modem_msg_data *msg)
 			}
 		}
 
-		if (battery_data_requested(msg->module.app.data_list,
-					   msg->module.app.count)) {
+		if (data_type_is_requested(msg->module.app.data_list,
+					   msg->module.app.count,
+					   APP_DATA_BATTERY)) {
 
 			int err;
 
@@ -926,8 +968,9 @@ static void on_all_states(struct modem_msg_data *msg)
 			}
 		}
 
-		if (neighbor_cells_data_requested(msg->module.app.data_list,
-						  msg->module.app.count)) {
+		if (data_type_is_requested(msg->module.app.data_list,
+					   msg->module.app.count,
+					   APP_DATA_NEIGHBOR_CELLS)) {
 			int err;
 
 			err = neighbor_cells_measurement_start();

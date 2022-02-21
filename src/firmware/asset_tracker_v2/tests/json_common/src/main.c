@@ -120,15 +120,15 @@ static void test_encode_battery_data_array(void)
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 }
 
-/* GPS */
+/* GNSS */
 
-static void test_encode_gps_data_object(void)
+static void test_encode_gnss_data_object(void)
 {
 	int ret;
 	/* Avoid using high precision floating point values to ease string comparison post
 	 * encoding.
 	 */
-	struct cloud_data_gps data = {
+	struct cloud_data_gnss data = {
 		.pvt.longi = 10,
 		.pvt.lat = 62,
 		.pvt.acc = 24,
@@ -136,25 +136,25 @@ static void test_encode_gps_data_object(void)
 		.pvt.spd = 1,
 		.pvt.hdg = 176,
 		.queued = true,
-		.gps_ts = 1000,
-		.format = CLOUD_CODEC_GPS_FORMAT_PVT
+		.gnss_ts = 1000,
+		.format = CLOUD_CODEC_GNSS_FORMAT_PVT
 	};
 
-	ret = json_common_gps_data_add(dummy.root_obj,
+	ret = json_common_gnss_data_add(dummy.root_obj,
 				       &data,
 				       JSON_COMMON_ADD_DATA_TO_OBJECT,
-				       DATA_GPS,
+				       DATA_GNSS,
 				       NULL);
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 
-	ret = encoded_output_check(dummy.root_obj, TEST_VALIDATE_GPS_JSON_SCHEMA, data.queued);
+	ret = encoded_output_check(dummy.root_obj, TEST_VALIDATE_GNSS_JSON_SCHEMA, data.queued);
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 
 	/* Check for invalid inputs. */
 
 	data.queued = false;
 
-	ret = json_common_gps_data_add(dummy.root_obj,
+	ret = json_common_gnss_data_add(dummy.root_obj,
 				       &data,
 				       JSON_COMMON_ADD_DATA_TO_OBJECT,
 				       "",
@@ -163,14 +163,14 @@ static void test_encode_gps_data_object(void)
 
 	data.queued = true;
 
-	ret = json_common_gps_data_add(NULL,
+	ret = json_common_gnss_data_add(NULL,
 				       &data,
 				       JSON_COMMON_ADD_DATA_TO_OBJECT,
 				       "",
 				       NULL);
 	zassert_equal(-EINVAL, ret, "Return value %d is wrong.", ret);
 
-	ret = json_common_gps_data_add(dummy.root_obj,
+	ret = json_common_gnss_data_add(dummy.root_obj,
 				       &data,
 				       JSON_COMMON_ADD_DATA_TO_OBJECT,
 				       NULL,
@@ -178,13 +178,13 @@ static void test_encode_gps_data_object(void)
 	zassert_equal(-EINVAL, ret, "Return value %d is wrong.", ret);
 }
 
-static void test_encode_gps_data_array(void)
+static void test_encode_gnss_data_array(void)
 {
 	int ret;
 	/* Avoid using high precision floating point values to ease string comparison post
 	 * encoding.
 	 */
-	struct cloud_data_gps data = {
+	struct cloud_data_gnss data = {
 		.pvt.longi = 10,
 		.pvt.lat = 62,
 		.pvt.acc = 24,
@@ -192,18 +192,18 @@ static void test_encode_gps_data_array(void)
 		.pvt.spd = 1,
 		.pvt.hdg = 176,
 		.queued = true,
-		.gps_ts = 1000,
-		.format = CLOUD_CODEC_GPS_FORMAT_PVT
+		.gnss_ts = 1000,
+		.format = CLOUD_CODEC_GNSS_FORMAT_PVT
 	};
 
-	ret = json_common_gps_data_add(dummy.array_obj,
+	ret = json_common_gnss_data_add(dummy.array_obj,
 				       &data,
 				       JSON_COMMON_ADD_DATA_TO_ARRAY,
 				       NULL,
 				       NULL);
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 
-	ret = encoded_output_check(dummy.array_obj, TEST_VALIDATE_ARRAY_GPS_JSON_SCHEMA,
+	ret = encoded_output_check(dummy.array_obj, TEST_VALIDATE_ARRAY_GNSS_JSON_SCHEMA,
 				   data.queued);
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 }
@@ -215,10 +215,13 @@ static void test_encode_environmental_data_object(void)
 	int ret;
 	/* Avoid using high precision floating point values to ease string comparison post
 	 * encoding.
+	 * The values for humidity, temperature, and pressure are actually floating point values,
+	 * env_ts is an integer.
 	 */
 	struct cloud_data_sensors data = {
-		.hum = 50,
-		.temp = 23,
+		.humidity = 50,
+		.temperature = 23,
+		.pressure = 101,
 		.env_ts = 1000,
 		.queued = true
 	};
@@ -269,8 +272,9 @@ static void test_encode_environmental_data_array(void)
 	 * encoding.
 	 */
 	struct cloud_data_sensors data = {
-		.hum = 50,
-		.temp = 23,
+		.humidity = 50,
+		.temperature = 23,
+		.pressure = 101,
 		.env_ts = 1000,
 		.queued = true
 	};
@@ -293,6 +297,8 @@ static void test_encode_modem_dynamic_data_object(void)
 {
 	int ret;
 	struct cloud_data_modem_dynamic data = {
+		.band = 3,
+		.nw_mode = LTE_LC_LTE_MODE_NBIOT,
 		.rsrp = -8,
 		.area = 12,
 		.mccmnc = "24202",
@@ -300,6 +306,8 @@ static void test_encode_modem_dynamic_data_object(void)
 		.ip = "10.81.183.99",
 		.ts = 1000,
 		.queued = true,
+		.band_fresh = true,
+		.nw_mode_fresh = true,
 		.area_code_fresh = true,
 		.cell_id_fresh = true,
 		.rsrp_fresh = true,
@@ -350,6 +358,8 @@ static void test_encode_modem_dynamic_data_array(void)
 {
 	int ret;
 	struct cloud_data_modem_dynamic data = {
+		.band = 20,
+		.nw_mode = LTE_LC_LTE_MODE_LTEM,
 		.rsrp = -8,
 		.area = 12,
 		.mccmnc = "24202",
@@ -357,6 +367,8 @@ static void test_encode_modem_dynamic_data_array(void)
 		.ip = "10.81.183.99",
 		.ts = 1000,
 		.queued = true,
+		.band_fresh = true,
+		.nw_mode_fresh = true,
 		.area_code_fresh = true,
 		.cell_id_fresh = true,
 		.rsrp_fresh = true,
@@ -382,10 +394,8 @@ static void test_encode_modem_static_data_object(void)
 {
 	int ret;
 	struct cloud_data_modem_static data = {
-		.bnd = 3,
-		.nw_nb_iot = 1,
-		.nw_gps = 1,
-		.iccid = "89450421180216216095",
+		.imei = "352656106111232",
+		.iccid = "89450421180216211234",
 		.fw = "mfw_nrf9160_1.2.3",
 		.brdv = "nrf9160dk_nrf9160",
 		.appv = "v1.0.0-development",
@@ -436,10 +446,8 @@ static void test_encode_modem_static_data_array(void)
 {
 	int ret;
 	struct cloud_data_modem_static data = {
-		.bnd = 3,
-		.nw_nb_iot = 1,
-		.nw_gps = 1,
-		.iccid = "89450421180216216095",
+		.imei = "352656106111232",
+		.iccid = "89450421180216211234",
 		.fw = "mfw_nrf9160_1.2.3",
 		.brdv = "nrf9160dk_nrf9160",
 		.appv = "v1.0.0-development",
@@ -724,7 +732,7 @@ static void test_encode_configuration_data_object(void)
 		.active_wait_timeout = 120,
 		.movement_resolution = 120,
 		.movement_timeout = 3600,
-		.gps_timeout = 60,
+		.gnss_timeout = 60,
 		.accelerometer_threshold = 2,
 		.no_data.gnss = true,
 		.no_data.neighbor_cell = true
@@ -761,7 +769,7 @@ static void test_decode_configuration_data(void)
 	zassert_equal(false, data.active_mode, "Configuration is wrong");
 	zassert_equal(true, data.no_data.gnss, "Configuration is wrong");
 	zassert_equal(true, data.no_data.neighbor_cell, "Configuration is wrong");
-	zassert_equal(60, data.gps_timeout, "Configuration is wrong");
+	zassert_equal(60, data.gnss_timeout, "Configuration is wrong");
 	zassert_equal(120, data.active_wait_timeout, "Configuration is wrong");
 	zassert_equal(120, data.movement_resolution, "Configuration is wrong");
 	zassert_equal(3600, data.movement_timeout, "Configuration is wrong");
@@ -784,16 +792,16 @@ static void test_encode_batch_data_object(void)
 		[1].bat_ts = 1000,
 		[1].queued = true
 	};
-	struct cloud_data_gps gps[2] = {
+	struct cloud_data_gnss gnss[2] = {
 		[0].pvt.longi = 10,
 		[0].pvt.lat = 62,
 		[0].pvt.acc = 24,
 		[0].pvt.alt = 170,
 		[0].pvt.spd = 1,
 		[0].pvt.hdg = 176,
-		[0].gps_ts = 1000,
+		[0].gnss_ts = 1000,
 		[0].queued = true,
-		[0].format = CLOUD_CODEC_GPS_FORMAT_PVT,
+		[0].format = CLOUD_CODEC_GNSS_FORMAT_PVT,
 		/* Second entry */
 		[1].pvt.longi = 10,
 		[1].pvt.lat = 62,
@@ -801,11 +809,13 @@ static void test_encode_batch_data_object(void)
 		[1].pvt.alt = 170,
 		[1].pvt.spd = 1,
 		[1].pvt.hdg = 176,
-		[1].gps_ts = 1000,
+		[1].gnss_ts = 1000,
 		[1].queued = true,
-		[1].format = CLOUD_CODEC_GPS_FORMAT_PVT
+		[1].format = CLOUD_CODEC_GNSS_FORMAT_PVT
 	};
 	struct cloud_data_modem_dynamic modem_dynamic[2] = {
+		[0].band = 3,
+		[0].nw_mode = LTE_LC_LTE_MODE_NBIOT,
 		[0].rsrp = -8,
 		[0].area = 12,
 		[0].mccmnc = "24202",
@@ -813,12 +823,16 @@ static void test_encode_batch_data_object(void)
 		[0].ip = "10.81.183.99",
 		[0].ts = 1000,
 		[0].queued = true,
+		[0].band_fresh = true,
+		[0].nw_mode_fresh = true,
 		[0].area_code_fresh = true,
 		[0].cell_id_fresh = true,
 		[0].rsrp_fresh = true,
 		[0].ip_address_fresh = true,
 		[0].mccmnc_fresh = true,
 		/* Second entry */
+		[1].band = 20,
+		[1].nw_mode = LTE_LC_LTE_MODE_LTEM,
 		[1].rsrp = -5,
 		[1].area = 12,
 		[1].mccmnc = "24202",
@@ -826,6 +840,8 @@ static void test_encode_batch_data_object(void)
 		[1].ip = "10.81.183.99",
 		[1].ts = 1000,
 		[1].queued = true,
+		[1].band_fresh = true,
+		[1].nw_mode_fresh = true,
 		[1].area_code_fresh = true,
 		[1].cell_id_fresh = true,
 		[1].rsrp_fresh = true,
@@ -833,20 +849,16 @@ static void test_encode_batch_data_object(void)
 		[1].mccmnc_fresh = true,
 	};
 	struct cloud_data_modem_static modem_static[2] = {
-		[0].bnd = 3,
-		[0].nw_nb_iot = 1,
-		[0].nw_gps = 1,
-		[0].iccid = "89450421180216216095",
+		[0].imei = "352656106111232",
+		[0].iccid = "89450421180216211234",
 		[0].fw = "mfw_nrf9160_1.2.3",
 		[0].brdv = "nrf9160dk_nrf9160",
 		[0].appv = "v1.0.0-development",
 		[0].ts = 1000,
 		[0].queued = true,
 		/* Second entry */
-		[1].bnd = 3,
-		[1].nw_nb_iot = 1,
-		[1].nw_gps = 1,
-		[1].iccid = "89450421180216216095",
+		[1].imei = "352656106111232",
+		[1].iccid = "89450421180216211234",
 		[1].fw = "mfw_nrf9160_1.2.3",
 		[1].brdv = "nrf9160dk_nrf9160",
 		[1].appv = "v1.0.0-development",
@@ -876,13 +888,15 @@ static void test_encode_batch_data_object(void)
 		[1].queued = true
 	};
 	struct cloud_data_sensors environmental[2] = {
-		[0].hum = 50,
-		[0].temp = 23,
+		[0].humidity = 50,
+		[0].temperature = 23,
+		[0].pressure = 80,
 		[0].env_ts = 1000,
 		[0].queued = true,
 		/* Second entry */
-		[1].hum = 50,
-		[1].temp = 23,
+		[1].humidity = 50,
+		[1].temperature = 23,
+		[1].pressure = 101,
 		[1].env_ts = 1000,
 		[1].queued = true
 	};
@@ -902,10 +916,10 @@ static void test_encode_batch_data_object(void)
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 
 	ret = json_common_batch_data_add(dummy.root_obj,
-					 JSON_COMMON_GPS,
-					 &gps,
-					 ARRAY_SIZE(gps),
-					 DATA_GPS);
+					 JSON_COMMON_GNSS,
+					 &gnss,
+					 ARRAY_SIZE(gnss),
+					 DATA_GNSS);
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 
 	ret = json_common_batch_data_add(dummy.root_obj,
@@ -953,29 +967,29 @@ static void test_encode_batch_data_object(void)
  * with a predefined JSON string schema.
  */
 
-static void test_floating_point_encoding_gps(void)
+static void test_floating_point_encoding_gnss(void)
 {
 	int ret;
 	cJSON *decoded_root_obj;
-	cJSON *decoded_gps_obj;
+	cJSON *decoded_gnss_obj;
 	cJSON *decoded_value_obj;
-	struct cloud_data_gps decoded_values = {0};
-	struct cloud_data_gps data = {
+	struct cloud_data_gnss decoded_values = {0};
+	struct cloud_data_gnss data = {
 		.pvt.longi = 10.417852141870654,
 		.pvt.lat = 63.43278762669529,
 		.pvt.acc = 15.455987930297852,
 		.pvt.alt = 53.67230987548828,
 		.pvt.spd = 0.4443884789943695,
 		.pvt.hdg = 176.12345298374867,
-		.gps_ts = 1000,
+		.gnss_ts = 1000,
 		.queued = true,
-		.format = CLOUD_CODEC_GPS_FORMAT_PVT
+		.format = CLOUD_CODEC_GNSS_FORMAT_PVT
 	};
 
-	ret = json_common_gps_data_add(dummy.root_obj,
+	ret = json_common_gnss_data_add(dummy.root_obj,
 				       &data,
 				       JSON_COMMON_ADD_DATA_TO_OBJECT,
-				       DATA_GPS,
+				       DATA_GNSS,
 				       NULL);
 	zassert_equal(0, ret, "Return value %d is wrong", ret);
 	zassert_false(data.queued, "Queued flag was not set to false by function %s", __func__);
@@ -986,18 +1000,18 @@ static void test_floating_point_encoding_gps(void)
 	decoded_root_obj = cJSON_Parse(dummy.buffer);
 	zassert_not_null(decoded_root_obj, "Root object is NULL");
 
-	decoded_gps_obj = json_object_decode(decoded_root_obj, DATA_GPS);
-	zassert_not_null(decoded_gps_obj, "Decoded GPS object is NULL");
+	decoded_gnss_obj = json_object_decode(decoded_root_obj, DATA_GNSS);
+	zassert_not_null(decoded_gnss_obj, "Decoded GNSS object is NULL");
 
-	decoded_value_obj = json_object_decode(decoded_gps_obj, DATA_VALUE);
+	decoded_value_obj = json_object_decode(decoded_gnss_obj, DATA_VALUE);
 	zassert_not_null(decoded_value_obj, "Decoded value object is NULL");
 
-	cJSON *longitude = cJSON_GetObjectItem(decoded_value_obj, DATA_GPS_LONGITUDE);
-	cJSON *latitude = cJSON_GetObjectItem(decoded_value_obj, DATA_GPS_LATITUDE);
+	cJSON *longitude = cJSON_GetObjectItem(decoded_value_obj, DATA_GNSS_LONGITUDE);
+	cJSON *latitude = cJSON_GetObjectItem(decoded_value_obj, DATA_GNSS_LATITUDE);
 	cJSON *accuracy = cJSON_GetObjectItem(decoded_value_obj, DATA_MOVEMENT);
-	cJSON *altitude = cJSON_GetObjectItem(decoded_value_obj, DATA_GPS_ALTITUDE);
-	cJSON *speed = cJSON_GetObjectItem(decoded_value_obj, DATA_GPS_SPEED);
-	cJSON *heading = cJSON_GetObjectItem(decoded_value_obj, DATA_GPS_HEADING);
+	cJSON *altitude = cJSON_GetObjectItem(decoded_value_obj, DATA_GNSS_ALTITUDE);
+	cJSON *speed = cJSON_GetObjectItem(decoded_value_obj, DATA_GNSS_SPEED);
+	cJSON *heading = cJSON_GetObjectItem(decoded_value_obj, DATA_GNSS_HEADING);
 
 	zassert_not_null(longitude, "Longitude is NULL");
 	zassert_not_null(latitude, "Latitude is NULL");
@@ -1094,8 +1108,9 @@ static void test_floating_point_encoding_environmental(void)
 	cJSON *decoded_value_obj;
 	struct cloud_data_sensors decoded_values = {0};
 	struct cloud_data_sensors data = {
-		.temp = 26.27,
-		.hum = 35.15,
+		.temperature = 26.27,
+		.humidity = 35.15,
+		.pressure = 101.36,
 		.env_ts = 1000,
 		.queued = true
 	};
@@ -1121,16 +1136,23 @@ static void test_floating_point_encoding_environmental(void)
 	zassert_not_null(decoded_value_obj, "Decoded value object is NULL");
 
 	cJSON *temperature = cJSON_GetObjectItem(decoded_value_obj, DATA_TEMPERATURE);
-	cJSON *humidity = cJSON_GetObjectItem(decoded_value_obj, DATA_HUMID);
+	cJSON *humidity = cJSON_GetObjectItem(decoded_value_obj, DATA_HUMIDITY);
+	cJSON *pressure = cJSON_GetObjectItem(decoded_value_obj, DATA_PRESSURE);
 
 	zassert_not_null(temperature, "Temperature is NULL");
 	zassert_not_null(humidity, "Humidity is NULL");
+	zassert_not_null(pressure, "Pressure is NULL");
 
-	decoded_values.temp = temperature->valuedouble;
-	decoded_values.hum = humidity->valuedouble;
+	decoded_values.temperature = temperature->valuedouble;
+	decoded_values.humidity = humidity->valuedouble;
+	decoded_values.pressure = pressure->valuedouble;
 
-	zassert_within(decoded_values.temp, data.temp, 0.1, "Decoded value is not within delta");
-	zassert_within(decoded_values.hum, data.hum, 0.1, "Decoded value is not within delta");
+	zassert_within(decoded_values.temperature, data.temperature, 0.1,
+		       "Decoded value is not within delta");
+	zassert_within(decoded_values.humidity, data.humidity, 0.1,
+		       "Decoded value is not within delta");
+	zassert_within(decoded_values.pressure, data.pressure, 0.1,
+		       "Decoded value is not within delta");
 
 	cJSON_Delete(decoded_root_obj);
 }
@@ -1211,11 +1233,11 @@ void test_main(void)
 					       test_setup_array,
 					       test_teardown_array),
 
-		/* GPS */
-		ztest_unit_test_setup_teardown(test_encode_gps_data_object,
+		/* GNSS */
+		ztest_unit_test_setup_teardown(test_encode_gnss_data_object,
 					       test_setup_object,
 					       test_teardown_object),
-		ztest_unit_test_setup_teardown(test_encode_gps_data_array,
+		ztest_unit_test_setup_teardown(test_encode_gnss_data_array,
 					       test_setup_array,
 					       test_teardown_array),
 
@@ -1287,8 +1309,8 @@ void test_main(void)
 					       test_setup_object,
 					       test_teardown_object),
 
-		/* GPS floating point values comparison */
-		ztest_unit_test_setup_teardown(test_floating_point_encoding_gps,
+		/* GNSS floating point values comparison */
+		ztest_unit_test_setup_teardown(test_floating_point_encoding_gnss,
 					       test_setup_object,
 					       test_teardown_object),
 

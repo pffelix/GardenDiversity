@@ -31,88 +31,98 @@ uint8_t *usb_update_sn_string_descriptor(void)
 }
 
  /*
- * Audio sensor
+ * Microphone sensor
+ */
+#include "microphone.h"
+
+ /*
+ * UART communication between nrf52840 and nrf9160
  */
 
-#include <drivers/i2s.h>
-#include <stdlib.h>
+#include <sys/printk.h>
+#include <drivers/uart.h>
 #include <string.h>
 
-#define I2S_RX_NODE DT_NODELABEL(i2s_rx)
-#define I2S_RX_TIMEOUT 10000
-#define AUDIO_SAMPLE_FREQ 44100
-#define AUDIO_SAMPLES_PER_CH_PER_BUF 128
-#define AUDIO_NUM_CHANNELS 2
-#define AUDIO_SAMPLES_PER_BUF (AUDIO_SAMPLES_PER_CH_PER_BUF * AUDIO_NUM_CHANNELS)
-#define AUDIO_SAMPLE_BIT_WIDTH 24
-#define AUDIO_BUF_BYTES (AUDIO_SAMPLES_PER_BUF * AUDIO_SAMPLE_BIT_WIDTH / 8)
-#define AUDIO_BUF_COUNT 64
-#define AUDIO_BUF_BYTES_ALIGN 4
-K_MEM_SLAB_DEFINE(i2s_rx_mem_slab, AUDIO_BUF_BYTES, AUDIO_BUF_COUNT, AUDIO_BUF_BYTES_ALIGN);
-static const struct device *host_i2s_rx_dev;
-static struct i2s_config i2s_rx_cfg;
-static int ret;
+static uint8_t uart_buf[1024];
+static struct device *uart_dev; 
+struct uart_config uart_cfg;
+int uart_ret;
 
-static void audio_init(void)
+int send_data(const uint8_t *buf, size_t size)
 {
-	/*configure rx device*/
-	host_i2s_rx_dev = DEVICE_DT_GET(I2S_RX_NODE);
-	if (!host_i2s_rx_dev) {
-		LOG_ERR("unable to find i2s_rx device\n");
+	if (size == 0) {
+		return 0;
 	}
-
-	/* configure i2s for audio playback */
-	i2s_rx_cfg.word_size = AUDIO_SAMPLE_BIT_WIDTH;
-	i2s_rx_cfg.channels = AUDIO_NUM_CHANNELS;
-	i2s_rx_cfg.format = I2S_FMT_DATA_FORMAT_I2S;
-	i2s_rx_cfg.options = I2S_OPT_BIT_CLK_MASTER | I2S_OPT_FRAME_CLK_MASTER;
-	i2s_rx_cfg.frame_clk_freq = AUDIO_SAMPLE_FREQ;
-	i2s_rx_cfg.mem_slab = &i2s_rx_mem_slab;
-	i2s_rx_cfg.block_size = AUDIO_BUF_BYTES;
-	i2s_rx_cfg.timeout = I2S_RX_TIMEOUT;
-	ret = i2s_configure(host_i2s_rx_dev, I2S_DIR_RX, &i2s_rx_cfg);
-	if (ret != 0) {
-		LOG_ERR("i2s_configure failed with %d error\n", ret);
+	for(int i = 0; i < size; i++){
+		uart_poll_out(uart_dev, buf[i]);
 	}
+	return 0;
 }
+
+
+void uart_cb(struct device *x)
+{
+	uart_irq_update(x);
+	int data_length = 0;
+
+	if (uart_irq_rx_ready(x)) {
+		data_length = uart_fifo_read(x, uart_buf, sizeof(uart_buf));
+		uart_buf[data_length] = 0;
+	}
+	printk("%s", uart_buf);
+}
+
 
 void main(void)
 {
+
+
         /*
-        * Audio sensor
+        * UART communication between nrf52840 and nrf9160
         */
 
-	audio_init();
-
-	/* start i2s rx driver */
-	ret = i2s_trigger(host_i2s_rx_dev, I2S_DIR_RX, I2S_TRIGGER_START);
-	if (ret != 0) {
-		LOG_ERR("i2s_trigger failed with %d error\n", ret);
+	uart_dev = device_get_binding("UART_0");
+	if (!uart_dev) {
+          printk("Could not get UART 0\n");
+	}
+        
+        uart_ret = uart_config_get(uart_dev, &uart_cfg);
+        uart_cfg.baudrate = 1000000;
+        uart_cfg.flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS;
+        uart_ret = uart_configure(uart_dev, &uart_cfg);
+        uart_irq_callback_set(uart_dev, uart_cb);
+	uart_irq_rx_enable(uart_dev);
+	printk("UART 52840 start!\n");
+	char hello[] = "hello from 52840 \n";
+	
+	while (1) {
+		send_data(hello, sizeof(hello));
+		k_sleep(K_MSEC(1000));
 	}
 
-        void *rx_mem_block;
-        rx_mem_block = k_malloc(AUDIO_BUF_BYTES);
-        size_t size;
-        int16_t sample;
-	while (true) {
-        	/* receive data */
-		ret = i2s_buf_read(host_i2s_rx_dev, rx_mem_block, &size);
-        	if (ret != 0) {
-        		LOG_ERR("i2s_read failed with %d error\n", ret);
-        	}
-                for (int i = 0; i < AUDIO_SAMPLES_PER_BUF; ++i) {
-                        sample = ((int16_t *)rx_mem_block)[i] >> 16;
-                }
-	}
-        k_free(rx_mem_block);
+        /*
+        * Microphone sensor
+        */
+        
+        bool ret;
+        ret = microphone_inference_start();
+        if(ret){
+          ret = microphone_inference_record();
+        }
+        float *sample = 0;
+        for(size_t t = 0; t < AUDIO_REC_SAMPLES; t++){
+          microphone_inference_get_data(t, 1, sample);
+        }
 
         /*
         * Connectivity bridge
         */
         if (event_manager_init()) {
-		LOG_ERR("Event manager not initialized\n");
+		printk("Event manager not initialized\n");
 	} else {
 		module_set_state(MODULE_STATE_READY);
 	}
+
+
 }
 

@@ -15,10 +15,3 @@
 		label = "CDC_ACM_1";
 	};
 };
-
-i2s_rx: &i2s0 {
-	status = "okay"; // Thingy91, InvenSense INMP441, Adafruit SPH0645LM4H
-	sck-pin = <6>; // SPARE1, sck, BCLK
-	lrck-pin = <5>; // SPARE2, ws, LRCL
-	sdin-pin = <26>; // SPARE3, sd, DOUT
-};

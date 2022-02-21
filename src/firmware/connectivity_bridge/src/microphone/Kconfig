@@ -1,0 +1,19 @@
+#
+# Copyright (c) 2020 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+if LOG
+
+menu "Microphone options"
+
+comment "Microphone selection"
+
+config MICROPHONE_PDM
+	bool "Module PDM microphone"
+	default y
+
+endmenu
+
+endif

@@ -30,7 +30,7 @@
 #include "events/data_module_event.h"
 #include "events/util_module_event.h"
 #include "events/modem_module_event.h"
-#include "events/gps_module_event.h"
+#include "events/gnss_module_event.h"
 #include "events/debug_module_event.h"
 
 #include <logging/log.h>
@@ -51,7 +51,7 @@ struct cloud_msg_data {
 		struct modem_module_event modem;
 		struct cloud_module_event cloud;
 		struct util_module_event util;
-		struct gps_module_event gps;
+		struct gnss_module_event gnss;
 		struct debug_module_event debug;
 	} module;
 };
@@ -93,8 +93,16 @@ static struct cloud_data_cfg copy_cfg;
 const k_tid_t cloud_module_thread;
 
 #if defined(CONFIG_NRF_CLOUD_PGPS)
-/* Local copy of the last requested AGPS request from the modem. */
-static struct nrf_modem_gnss_agps_data_frame agps_request;
+/* Local copy of the last A-GPS request from the modem, used to inject correct P-GPS data. */
+static struct nrf_modem_gnss_agps_data_frame agps_request = {
+	.sv_mask_ephe = 0xFFFFFFFF,
+	.sv_mask_alm = 0xFFFFFFFF,
+	.data_flags = NRF_MODEM_GNSS_AGPS_GPS_UTC_REQUEST |
+		      NRF_MODEM_GNSS_AGPS_KLOBUCHAR_REQUEST |
+		      NRF_MODEM_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST |
+		      NRF_MODEM_GNSS_AGPS_POSITION_REQUEST |
+		      NRF_MODEM_GNSS_AGPS_INTEGRITY_REQUEST
+};
 #endif
 
 /* Cloud module message queue. */
@@ -210,10 +218,10 @@ static bool event_handler(const struct event_header *eh)
 		enqueue_msg = true;
 	}
 
-	if (is_gps_module_event(eh)) {
-		struct gps_module_event *evt = cast_gps_module_event(eh);
+	if (is_gnss_module_event(eh)) {
+		struct gnss_module_event *evt = cast_gnss_module_event(eh);
 
-		msg.module.gps = *evt;
+		msg.module.gnss = *evt;
 		enqueue_msg = true;
 	}
 
@@ -246,11 +254,21 @@ static void agps_data_handle(const uint8_t *buf, size_t len)
 		LOG_WRN("Unable to process A-GPS data, error: %d", err);
 	} else {
 		LOG_DBG("A-GPS data processed");
-		return;
 	}
 #endif
 
 #if defined(CONFIG_NRF_CLOUD_PGPS)
+#if defined(CONFIG_NRF_CLOUD_AGPS)
+	if (!err) {
+		err = nrf_cloud_pgps_notify_prediction();
+		if (err) {
+			LOG_ERR("Error requesting prediction notification: %d", err);
+		} else {
+			return;
+		}
+	}
+#endif
+
 	LOG_DBG("Process incoming data if P-GPS related");
 
 	err = nrf_cloud_pgps_process(buf, len);
@@ -323,6 +341,32 @@ static void cloud_wrap_event_handler(const struct cloud_wrap_event *const evt)
 		LOG_DBG("CLOUD_WRAP_EVT_PGPS_DATA_RECEIVED");
 		agps_data_handle(evt->data.buf, evt->data.len);
 		break;
+	case CLOUD_WRAP_EVT_USER_ASSOCIATION_REQUEST: {
+		LOG_DBG("CLOUD_WRAP_EVT_USER_ASSOCIATION_REQUEST");
+
+		/* Cancel the reconnection routine upon a user association request. Device is
+		 * awaiting registration to an nRF Cloud and does not need to reconnect
+		 * until this happens.
+		 */
+		k_work_cancel_delayable(&connect_check_work);
+		connect_retries = 0;
+
+		SEND_EVENT(cloud, CLOUD_EVT_USER_ASSOCIATION_REQUEST);
+	};
+		break;
+	case CLOUD_WRAP_EVT_USER_ASSOCIATED: {
+		LOG_DBG("CLOUD_WRAP_EVT_USER_ASSOCIATED");
+
+		/* After user association, the device is disconnected. Reconnect immediately
+		 * to complete the process.
+		 */
+		if (!k_work_delayable_is_pending(&connect_check_work)) {
+			k_work_reschedule(&connect_check_work, K_SECONDS(5));
+		}
+
+		SEND_EVENT(cloud, CLOUD_EVT_USER_ASSOCIATED);
+	};
+		break;
 	case CLOUD_WRAP_EVT_FOTA_DONE: {
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_DONE");
 		SEND_EVENT(cloud, CLOUD_EVT_FOTA_DONE);
@@ -334,6 +378,7 @@ static void cloud_wrap_event_handler(const struct cloud_wrap_event *const evt)
 		break;
 	case CLOUD_WRAP_EVT_FOTA_START: {
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_START");
+		SEND_EVENT(cloud, CLOUD_EVT_FOTA_START);
 		break;
 	}
 	case CLOUD_WRAP_EVT_FOTA_ERASE_PENDING:
@@ -342,9 +387,11 @@ static void cloud_wrap_event_handler(const struct cloud_wrap_event *const evt)
 	case CLOUD_WRAP_EVT_FOTA_ERASE_DONE:
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_ERASE_DONE");
 		break;
-	case CLOUD_WRAP_EVT_FOTA_ERROR:
+	case CLOUD_WRAP_EVT_FOTA_ERROR: {
 		LOG_DBG("CLOUD_WRAP_EVT_FOTA_ERROR");
+		SEND_EVENT(cloud, CLOUD_EVT_FOTA_ERROR);
 		break;
+	}
 	case CLOUD_WRAP_EVT_ERROR: {
 		LOG_DBG("CLOUD_WRAP_EVT_ERROR");
 		SEND_ERROR(cloud, CLOUD_EVT_ERROR, evt->err);
@@ -440,7 +487,9 @@ static void config_get(void)
 	int err;
 
 	err = cloud_wrap_state_get();
-	if (err) {
+	if (err == -ENOTSUP) {
+		LOG_DBG("Requesting of device configuration is not supported");
+	} else if (err) {
 		LOG_ERR("cloud_wrap_state_get, err: %d", err);
 	} else {
 		LOG_DBG("Device configuration requested");
@@ -533,7 +582,7 @@ static void pgps_request_send(struct cloud_codec_data *data)
 	} else if (err) {
 		LOG_ERR("cloud_wrap_pgps_request_send, err: %d", err);
 	} else {
-		LOG_DBG("PGPS request sent");
+		LOG_DBG("P-GPS request sent");
 	}
 }
 #endif
@@ -607,6 +656,10 @@ void pgps_handler(struct nrf_cloud_pgps_event *event)
 			LOG_ERR("Unable to send prediction to modem: %d", err);
 		}
 
+		err = nrf_cloud_pgps_preemptive_updates();
+		if (err) {
+			LOG_ERR("Error requesting updates: %d", err);
+		}
 		break;
 	case PGPS_EVT_REQUEST: {
 		LOG_DBG("PGPS_EVT_REQUEST");
@@ -775,25 +828,6 @@ static void on_sub_state_cloud_connected(struct cloud_msg_data *msg)
 	if (IS_EVENT(msg, data, DATA_EVT_NEIGHBOR_CELLS_DATA_SEND)) {
 		neighbor_cells_data_send(&msg->module.data);
 	}
-
-	/* To properly initialize the nRF Cloud PGPS library we need to be connected to cloud and
-	 * date time must be obtained.
-	 */
-#if defined(CONFIG_NRF_CLOUD_PGPS)
-	if (IS_EVENT(msg, data, DATA_EVT_DATE_TIME_OBTAINED)) {
-		struct nrf_cloud_pgps_init_param param = {
-			.event_handler = pgps_handler,
-			.storage_base = PM_MCUBOOT_SECONDARY_ADDRESS,
-			.storage_size = PM_MCUBOOT_SECONDARY_SIZE
-		};
-
-		int err = nrf_cloud_pgps_init(&param);
-
-		if (err) {
-			LOG_ERR("nrf_cloud_pgps_init: %d", err);
-		}
-	}
-#endif
 }
 
 /* Message handler for SUB_STATE_CLOUD_DISCONNECTED. */
@@ -835,11 +869,26 @@ static void on_all_states(struct cloud_msg_data *msg)
 	}
 
 #if defined(CONFIG_NRF_CLOUD_PGPS)
-	if (IS_EVENT(msg, gps, GPS_EVT_AGPS_NEEDED)) {
+	if (IS_EVENT(msg, gnss, GNSS_EVT_AGPS_NEEDED)) {
 		/* Keep a local copy of the incoming request. Used when injecting
 		 * P-GPS data into the modem.
 		 */
-		memcpy(&agps_request, &msg->module.gps.data.agps_request, sizeof(agps_request));
+		memcpy(&agps_request, &msg->module.gnss.data.agps_request, sizeof(agps_request));
+	}
+
+	/* To properly initialize the nRF Cloud PGPS library date time must have been obtained. */
+	if (IS_EVENT(msg, data, DATA_EVT_DATE_TIME_OBTAINED)) {
+		struct nrf_cloud_pgps_init_param param = {
+			.event_handler = pgps_handler,
+			.storage_base = PM_MCUBOOT_SECONDARY_ADDRESS,
+			.storage_size = PM_MCUBOOT_SECONDARY_SIZE
+		};
+
+		int err = nrf_cloud_pgps_init(&param);
+
+		if (err) {
+			LOG_ERR("nrf_cloud_pgps_init: %d", err);
+		}
 	}
 #endif
 }
@@ -908,6 +957,6 @@ EVENT_SUBSCRIBE(MODULE, data_module_event);
 EVENT_SUBSCRIBE(MODULE, app_module_event);
 EVENT_SUBSCRIBE(MODULE, modem_module_event);
 EVENT_SUBSCRIBE(MODULE, cloud_module_event);
-EVENT_SUBSCRIBE(MODULE, gps_module_event);
+EVENT_SUBSCRIBE(MODULE, gnss_module_event);
 EVENT_SUBSCRIBE(MODULE, debug_module_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, util_module_event);

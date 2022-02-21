@@ -19,6 +19,8 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_CLOUD_INTEGRATION_LOG_LEVEL);
  */
 #define CELL_POS_FILTER_STRING "CELL_POS"
 
+static struct k_work_delayable user_associating_work;
+
 static cloud_wrap_evt_handler_t wrapper_evt_handler;
 
 static void cloud_wrapper_notify_event(const struct cloud_wrap_event *evt)
@@ -30,19 +32,45 @@ static void cloud_wrapper_notify_event(const struct cloud_wrap_event *evt)
 	}
 }
 
+/* Work item that is called if user association fails to succeed within
+ * CONFIG_CLOUD_USER_ASSOCIATION_TIMEOUT_SEC.
+ */
+static void user_association_work_fn(struct k_work *work)
+{
+	/* Report an irrecoverable error in case user association fails. Will cause a reboot of the
+	 * application.
+	 */
+	struct cloud_wrap_event cloud_wrap_evt = {
+		.type = CLOUD_WRAP_EVT_ERROR,
+		.err = -ETIMEDOUT
+	};
+
+	LOG_ERR("Failed to associate the device within: %d seconds",
+		CONFIG_CLOUD_USER_ASSOCIATION_TIMEOUT_SEC);
+
+	cloud_wrapper_notify_event(&cloud_wrap_evt);
+}
+
 static int send_service_info(void)
 {
 	int err;
+	bool fota_capable = IS_ENABLED(CONFIG_NRF_CLOUD_FOTA) &&
+			    IS_ENABLED(CONFIG_BOOTLOADER_MCUBOOT);
+	bool boot_fota_capable = IS_ENABLED(CONFIG_BUILD_S1_VARIANT) &&
+				 IS_ENABLED(CONFIG_SECURE_BOOT);
 	struct nrf_cloud_svc_info_fota fota_info = {
-		.application = true,
-		.bootloader = true,
-		.modem = true
+		.application = fota_capable,
+		.bootloader = fota_capable && boot_fota_capable,
+		.modem = fota_capable
 	};
 	struct nrf_cloud_svc_info_ui ui_info = {
 		.gps = true,
+#if defined(CONFIG_BOARD_THINGY91_NRF9160_NS)
 		.humidity = true,
-		.rsrp = true,
+		.air_pressure = true,
 		.temperature = true,
+#endif
+		.rsrp = true,
 		.button = true
 	};
 	struct nrf_cloud_svc_info service_info = {
@@ -87,6 +115,8 @@ static void nrf_cloud_event_handler(const struct nrf_cloud_evt *evt)
 	switch (evt->type) {
 	case NRF_CLOUD_EVT_TRANSPORT_CONNECTING:
 		LOG_DBG("NRF_CLOUD_EVT_TRANSPORT_CONNECTING");
+		cloud_wrap_evt.type = CLOUD_WRAP_EVT_CONNECTING;
+		notify = true;
 		break;
 	case NRF_CLOUD_EVT_TRANSPORT_CONNECTED:
 		LOG_DBG("NRF_CLOUD_EVT_TRANSPORT_CONNECTED");
@@ -115,9 +145,19 @@ static void nrf_cloud_event_handler(const struct nrf_cloud_evt *evt)
 	case NRF_CLOUD_EVT_SENSOR_DATA_ACK:
 		LOG_DBG("NRF_CLOUD_EVT_SENSOR_DATA_ACK");
 		break;
+	case NRF_CLOUD_EVT_FOTA_START:
+		LOG_DBG("NRF_CLOUD_EVT_FOTA_START");
+		cloud_wrap_evt.type = CLOUD_WRAP_EVT_FOTA_START;
+		notify = true;
+		break;
 	case NRF_CLOUD_EVT_FOTA_DONE:
 		LOG_DBG("NRF_CLOUD_EVT_FOTA_DONE");
 		cloud_wrap_evt.type = CLOUD_WRAP_EVT_FOTA_DONE;
+		notify = true;
+		break;
+	case NRF_CLOUD_EVT_FOTA_ERROR:
+		LOG_DBG("NRF_CLOUD_EVT_FOTA_ERROR");
+		cloud_wrap_evt.type = CLOUD_WRAP_EVT_FOTA_ERROR;
 		notify = true;
 		break;
 	case NRF_CLOUD_EVT_RX_DATA:
@@ -140,30 +180,41 @@ static void nrf_cloud_event_handler(const struct nrf_cloud_evt *evt)
 		break;
 	case NRF_CLOUD_EVT_USER_ASSOCIATION_REQUEST:
 		LOG_WRN("NRF_CLOUD_EVT_USER_ASSOCIATION_REQUEST");
-		LOG_WRN("Add the device to nRF Cloud and wait for it to reconnect");
+		LOG_WRN("Add the device to nRF Cloud to complete user association");
 
-		/* It is expected that the application will disconnect and reconnect to nRF Cloud
-		 * several times during device association.
+		/* Schedule a work item that causes an error in case user association is not
+		 * carried out within a configurable amount of time.
 		 */
+		k_work_schedule(&user_associating_work,
+				K_SECONDS(CONFIG_CLOUD_USER_ASSOCIATION_TIMEOUT_SEC));
 
-		/* Explicitly disconnect the nRF Cloud transport library to clear its
-		 * internal state. This is needed by the library to allow subsequent calls to
-		 * nrf_cloud_connect(), which is necessary to complete device association.
-		 */
-		err = nrf_cloud_disconnect();
-		if (err) {
-			LOG_ERR("nrf_cloud_disconnect failed, error: %d", err);
-
-			/* If disconnection from nRF Cloud fails, the cloud module is notified with
-			 * an error. The application is expected to perform a reboot in order
-			 * to reconnect to nRF Cloud and complete device association.
-			 */
-			cloud_wrap_evt.type = CLOUD_WRAP_EVT_ERROR;
-			notify = true;
-		}
+		cloud_wrap_evt.type = CLOUD_WRAP_EVT_USER_ASSOCIATION_REQUEST;
+		notify = true;
 		break;
 	case NRF_CLOUD_EVT_USER_ASSOCIATED:
 		LOG_DBG("NRF_CLOUD_EVT_USER_ASSOCIATED");
+
+		/* Disconnect/reconnect the device to apply the appropriate device policies and to
+		 * complete the user association process.
+		 */
+		if (k_work_delayable_is_pending(&user_associating_work)) {
+			err = nrf_cloud_disconnect();
+			if (err) {
+				LOG_ERR("nrf_cloud_disconnect, error: %d", err);
+
+				cloud_wrap_evt.type = CLOUD_WRAP_EVT_ERROR;
+				cloud_wrap_evt.err = err;
+				cloud_wrapper_notify_event(&cloud_wrap_evt);
+				return;
+			}
+
+			/* Cancel user association timeout upon completion of user association. */
+			k_work_cancel_delayable(&user_associating_work);
+
+			/* Notify the rest of the applicaiton that user association succeeded. */
+			cloud_wrap_evt.type = CLOUD_WRAP_EVT_USER_ASSOCIATED;
+			notify = true;
+		}
 		break;
 	default:
 		LOG_ERR("Unknown nRF Cloud event type: %d", evt->type);
@@ -194,6 +245,8 @@ int cloud_wrap_init(cloud_wrap_evt_handler_t event_handler)
 	LOG_DBG(" Cloud:       %s", "nRF Cloud");
 	LOG_DBG(" Endpoint:    %s", CONFIG_NRF_CLOUD_HOST_NAME);
 	LOG_DBG("********************************************");
+
+	k_work_init_delayable(&user_associating_work, user_association_work_fn);
 
 	wrapper_evt_handler = event_handler;
 
@@ -226,12 +279,6 @@ int cloud_wrap_disconnect(void)
 	return 0;
 }
 
-int cloud_wrap_state_get(void)
-{
-	/* Not supported by nRF Cloud */
-	return 0;
-}
-
 int cloud_wrap_state_send(char *buf, size_t len)
 {
 	int err;
@@ -249,102 +296,6 @@ int cloud_wrap_state_send(char *buf, size_t len)
 	}
 
 	return 0;
-}
-
-/* Decode data received from the data module and send the data to the correct endpoint. Ideally all
- * data should be sent to one endpoint in one message, but due to current restrictions in
- * nRF Cloud they must be sent to different endpoints.
- */
-static int decode_and_send(cJSON *object, const char *object_name, bool device_state)
-{
-	int err;
-	char *tx_buffer;
-	struct nrf_cloud_tx_data msg = {0};
-	cJSON *msg_ref = NULL;
-
-	msg_ref = cJSON_DetachItemFromObject(object, object_name);
-	if (msg_ref != NULL) {
-		if (device_state) {
-			/* When state object is detached from root, we need to add the reported
-			 * object back to state object before sending to the shadow.
-			 */
-			cJSON *state_obj = cJSON_CreateObject();
-
-			if (state_obj == NULL) {
-				cJSON_Delete(msg_ref);
-				return -ENOMEM;
-			}
-
-			json_add_obj(state_obj, OBJECT_STATE, msg_ref);
-
-			tx_buffer = cJSON_Print(state_obj);
-			cJSON_Delete(state_obj);
-			msg.topic_type = NRF_CLOUD_TOPIC_STATE;
-
-		} else {
-			tx_buffer = cJSON_Print(msg_ref);
-			cJSON_Delete(msg_ref);
-			msg.topic_type = NRF_CLOUD_TOPIC_MESSAGE;
-		}
-
-		if (tx_buffer == NULL) {
-			LOG_ERR("Failed to allocate memory for JSON string");
-			return -ENOMEM;
-		}
-
-		msg.data.ptr = tx_buffer;
-		msg.data.len = strlen(tx_buffer);
-		msg.qos = MQTT_QOS_0_AT_MOST_ONCE;
-
-		err = nrf_cloud_send(&msg);
-		k_free(tx_buffer);
-		if (err) {
-			LOG_ERR("nrf_cloud_send, error: %d", err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-int cloud_wrap_data_send(char *buf, size_t len)
-{
-	int err;
-	cJSON *root_obj = NULL;
-
-	root_obj = cJSON_Parse(buf);
-	if (root_obj == NULL) {
-		return -ENOENT;
-	}
-
-	err = decode_and_send(root_obj, OBJECT_MSG_TEMP, false);
-	if (err) {
-		goto clean_exit;
-	}
-
-	err = decode_and_send(root_obj, OBJECT_MSG_HUMID, false);
-	if (err) {
-		goto clean_exit;
-	}
-
-	err = decode_and_send(root_obj, OBJECT_MSG_GPS, false);
-	if (err) {
-		goto clean_exit;
-	}
-
-	err = decode_and_send(root_obj, OBJECT_MSG_RSRP, false);
-	if (err) {
-		goto clean_exit;
-	}
-
-	err = decode_and_send(root_obj, OBJECT_STATE, true);
-	if (err) {
-		goto clean_exit;
-	}
-
-clean_exit:
-	cJSON_Delete(root_obj);
-	return err;
 }
 
 int cloud_wrap_batch_send(char *buf, size_t len)
@@ -404,15 +355,29 @@ int cloud_wrap_neighbor_cells_send(char *buf, size_t len)
 	return 0;
 }
 
+int cloud_wrap_state_get(void)
+{
+	/* Not supported, the nRF Cloud library automatically requests the cloud-side state upon
+	 * an established connection.
+	 */
+	return -ENOTSUP;
+}
+
+int cloud_wrap_data_send(char *buf, size_t len)
+{
+	/* Not supported, all data is sent to the bulk topic. */
+	return -ENOTSUP;
+}
+
 int cloud_wrap_agps_request_send(char *buf, size_t len)
 {
-	/* Not supported */
+	/* Not supported, A-GPS is requested internally via the nRF Cloud A-GPS library. */
 	return -ENOTSUP;
 }
 
 int cloud_wrap_pgps_request_send(char *buf, size_t len)
 {
-	/* Not supported */
+	/* Not supported, P-GPS is requested internally via the nRF Cloud P-GPS library. */
 	return -ENOTSUP;
 }
 

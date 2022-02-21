@@ -235,7 +235,7 @@ exit:
 }
 
 int cloud_codec_encode_data(struct cloud_codec_data *output,
-			    struct cloud_data_gps *gps_buf,
+			    struct cloud_data_gnss *gnss_buf,
 			    struct cloud_data_sensors *sensor_buf,
 			    struct cloud_data_modem_static *modem_stat_buf,
 			    struct cloud_data_modem_dynamic *modem_dyn_buf,
@@ -284,9 +284,9 @@ int cloud_codec_encode_data(struct cloud_codec_data *output,
 		goto exit;
 	}
 
-	err = json_common_gps_data_add(root_obj, gps_buf,
+	err = json_common_gnss_data_add(root_obj, gnss_buf,
 				       JSON_COMMON_ADD_DATA_TO_OBJECT,
-				       DATA_GPS,
+				       DATA_GNSS,
 				       NULL);
 	if (err == 0) {
 		object_added = true;
@@ -396,20 +396,21 @@ exit:
 	return err;
 }
 
-int cloud_codec_encode_batch_data(
-				struct cloud_codec_data *output,
-				struct cloud_data_gps *gps_buf,
-				struct cloud_data_sensors *sensor_buf,
-				struct cloud_data_modem_dynamic *modem_dyn_buf,
-				struct cloud_data_ui *ui_buf,
-				struct cloud_data_accelerometer *accel_buf,
-				struct cloud_data_battery *bat_buf,
-				size_t gps_buf_count,
-				size_t sensor_buf_count,
-				size_t modem_dyn_buf_count,
-				size_t ui_buf_count,
-				size_t accel_buf_count,
-				size_t bat_buf_count)
+int cloud_codec_encode_batch_data(struct cloud_codec_data *output,
+				  struct cloud_data_gnss *gnss_buf,
+				  struct cloud_data_sensors *sensor_buf,
+				  struct cloud_data_modem_static *modem_stat_buf,
+				  struct cloud_data_modem_dynamic *modem_dyn_buf,
+				  struct cloud_data_ui *ui_buf,
+				  struct cloud_data_accelerometer *accel_buf,
+				  struct cloud_data_battery *bat_buf,
+				  size_t gnss_buf_count,
+				  size_t sensor_buf_count,
+				  size_t modem_stat_buf_count,
+				  size_t modem_dyn_buf_count,
+				  size_t ui_buf_count,
+				  size_t accel_buf_count,
+				  size_t bat_buf_count)
 {
 	int err;
 	char *buffer;
@@ -422,6 +423,15 @@ int cloud_codec_encode_batch_data(
 		return -ENOMEM;
 	}
 
+	err = json_common_batch_data_add(root_obj, JSON_COMMON_MODEM_STATIC,
+					 modem_stat_buf, modem_stat_buf_count,
+					 DATA_MODEM_STATIC);
+	if (err == 0) {
+		object_added = true;
+	} else if (err != -ENODATA) {
+		goto exit;
+	}
+
 	err = json_common_batch_data_add(root_obj, JSON_COMMON_MODEM_DYNAMIC,
 					 modem_dyn_buf, modem_dyn_buf_count,
 					 DATA_MODEM_DYNAMIC);
@@ -431,9 +441,9 @@ int cloud_codec_encode_batch_data(
 		goto exit;
 	}
 
-	err = json_common_batch_data_add(root_obj, JSON_COMMON_GPS,
-					 gps_buf, gps_buf_count,
-					 DATA_GPS);
+	err = json_common_batch_data_add(root_obj, JSON_COMMON_GNSS,
+					 gnss_buf, gnss_buf_count,
+					 DATA_GNSS);
 	if (err == 0) {
 		object_added = true;
 	} else if (err != -ENODATA) {
