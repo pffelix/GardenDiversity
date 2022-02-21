@@ -592,6 +592,9 @@ void main(void)
 
         uart_ret = uart_config_get(uart_dev, &uart_cfg);
         uart_cfg.baudrate = 1000000;
+        uart_cfg.parity = UART_CFG_PARITY_NONE;
+        uart_cfg.stop_bits = UART_CFG_STOP_BITS_1;
+        uart_cfg.data_bits = UART_CFG_DATA_BITS_8;
         uart_cfg.flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS;
         uart_ret = uart_configure(uart_dev, &uart_cfg);
 	uart_irq_callback_set(uart_dev, uart_cb);
