@@ -42,6 +42,7 @@ rsource "src/modules/Kconfig.debug_module"
 rsource "src/cloud/cloud_codec/Kconfig"
 rsource "src/watchdog/Kconfig"
 rsource "src/events/Kconfig"
+rsource "src/uart/Kconfig"
 
 endmenu
 

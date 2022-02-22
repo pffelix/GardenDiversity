@@ -1,0 +1,19 @@
+#
+# Copyright (c) 2020 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+if LOG
+
+menu "UART options"
+
+comment "UART selection"
+
+config MODULE_UART
+	bool "Module UART"
+	default y
+
+endmenu
+
+endif

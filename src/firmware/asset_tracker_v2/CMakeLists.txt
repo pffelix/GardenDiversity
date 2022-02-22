@@ -17,11 +17,12 @@ target_sources(app PRIVATE src/main.c)
 target_include_directories(app PRIVATE src)
 target_include_directories(app PRIVATE include/${BOARD}/)
 zephyr_include_directories_ifdef(CONFIG_MEMFAULT app PRIVATE configuration/memfault)
+zephyr_library_include_directories(src/uart)
 
 # Application directories
 add_subdirectory(src/modules)
 add_subdirectory(src/events)
-
+add_subdirectory(src/uart)
 add_subdirectory_ifdef(CONFIG_CLOUD_MODULE src/cloud)
 add_subdirectory_ifdef(CONFIG_SENSOR_MODULE src/ext_sensors)
 add_subdirectory_ifdef(CONFIG_WATCHDOG_APPLICATION src/watchdog)
