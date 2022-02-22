@@ -1,5 +1,5 @@
 /* Include ----------------------------------------------------------------- */
-#include "microphone.h"
+#include "module_microphone.h"
 #include <nrfx_pdm.h>
 #include <string.h>
 #include <zephyr.h>

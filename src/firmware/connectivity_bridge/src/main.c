@@ -33,11 +33,12 @@ uint8_t *usb_update_sn_string_descriptor(void)
  /*
  * Microphone sensor
  */
-#include "microphone.h"
+#include "module_microphone.h"
 
  /*
  * UART communication between nrf52840 and nrf9160
  */
+#include "module_uart.h"
 
 #include <sys/printk.h>
 #include <drivers/uart.h>
@@ -163,23 +164,23 @@ void main(void)
 {
 
 
-        /*
-        * UART communication between nrf52840 and nrf9160
-        */
+	/*
+	* UART communication between nrf52840 and nrf9160
+	*/
 
 	uart_dev = device_get_binding("UART_1");
 	if (!uart_dev) {
           printk("Could not get UART\n");
 	}
         
-        uart_ret = uart_config_get(uart_dev, &uart_cfg);
-        uart_cfg.baudrate = 1000000;
-        uart_cfg.parity = UART_CFG_PARITY_NONE;
-        uart_cfg.stop_bits = UART_CFG_STOP_BITS_1;
-        uart_cfg.data_bits = UART_CFG_DATA_BITS_8;
-        uart_cfg.flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS;
-        uart_ret = uart_configure(uart_dev, &uart_cfg);
-        uart_irq_callback_set(uart_dev, uart_cb_int16);
+	uart_ret = uart_config_get(uart_dev, &uart_cfg);
+	uart_cfg.baudrate = 1000000;
+	uart_cfg.parity = UART_CFG_PARITY_NONE;
+	uart_cfg.stop_bits = UART_CFG_STOP_BITS_1;
+	uart_cfg.data_bits = UART_CFG_DATA_BITS_8;
+	uart_cfg.flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS;
+	uart_ret = uart_configure(uart_dev, &uart_cfg);
+	uart_irq_callback_set(uart_dev, uart_cb_int16);
 	uart_irq_rx_enable(uart_dev);
 	printk("UART 52840 start!\n");
 	char hello[] = "hello from 52840 \n";

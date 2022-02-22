@@ -6,12 +6,12 @@
 
 if LOG
 
-menu "Microphone options"
+menu "UART options"
 
-comment "Microphone selection"
+comment "UART selection"
 
-config MODULE_MICROPHONE_PDM
-	bool "Module PDM microphone"
+config MODULE_UART
+	bool "Module UART"
 	default y
 
 endmenu

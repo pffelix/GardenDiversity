@@ -8,6 +8,7 @@ menu "Connectivity Bridge"
 rsource "src/modules/Kconfig"
 rsource "src/events/Kconfig"
 rsource "src/microphone/Kconfig"
+rsource "src/uart/Kconfig"
 endmenu
 
 menu "Zephyr Kernel"
