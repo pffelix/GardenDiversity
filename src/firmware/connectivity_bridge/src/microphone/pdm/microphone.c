@@ -302,7 +302,7 @@ bool microphone_inference_reset_buffers(void)
 }
 
 /**
- * Get raw audio signal data
+ * Get raw audio signal data in float format
  */
 void microphone_inference_get_data(size_t offset, size_t length, float *out_ptr)
 {
@@ -312,8 +312,16 @@ void microphone_inference_get_data(size_t offset, size_t length, float *out_ptr)
         *(out_ptr + i) = (float)inference.buffers[inference.buf_select ^ 1][offset + i]
         / ((float)(1 << 15));
     }
-    return true;
 }
+
+/**
+ * Get raw audio signal data pointer in int16_t format
+ */
+void microphone_inference_get_data_pointer(uint8_t channel, int16_t *out_ptr)
+{
+    out_ptr = inference.buffers[channel];
+}
+
 
 
 bool microphone_inference_end(void)

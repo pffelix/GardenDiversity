@@ -28,6 +28,7 @@ bool microphone_inference_start(void);
 bool microphone_inference_record(void);
 bool microphone_inference_reset_buffers(void);
 void microphone_inference_get_data(size_t offset, size_t length, float *out_ptr);
+void microphone_inference_get_data_pointer(uint8_t channel, int16_t *out_ptr);
 bool microphone_inference_end(void);
 
 
