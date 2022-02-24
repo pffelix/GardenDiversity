@@ -47,15 +47,16 @@ void main(void)
 	/*
 	* UART communication between nrf52840 and nrf9160
 	*/
+        // Synchronous
+ //       uart_async_init_int16();
+	//char hello[] = "hello from 52840 \n";
+ //       uint16_t hello_int16[] = {-5284, 5284, -1000, 1000, -32768, 32767};
+ //       while(1){
+ //               //send_data(hello, sizeof(hello));
+ //               uart_async_send_data_int16(hello_int16, sizeof(hello_int16) / sizeof(int16_t));
+ //               k_sleep(K_MSEC(1000));
+ //       }
 
-        uart_init();
-	char hello[] = "hello from 52840 \n";
-        uint16_t hello_int16[] = {-5284, 5284, -1000, 1000, -32768, 32767};
-        while(1){
-                //send_data(hello, sizeof(hello));
-                uart_send_data_int16(hello_int16, sizeof(hello_int16) / sizeof(int16_t));
-                k_sleep(K_MSEC(1000));
-        }
 
         /*
         * Microphone sensor
@@ -64,11 +65,11 @@ void main(void)
         bool ret;
         ret = microphone_inference_start();
         if(ret){
-          //ret = microphone_inference_record();
+          ret = microphone_inference_record();
         }
         int16_t* sample_ptr;
         microphone_inference_get_data_pointer(1, sample_ptr);
-        send_data_int16(sample_ptr, AUDIO_REC_SAMPLES);
+        uart_send_data_int16(sample_ptr, AUDIO_REC_SAMPLES);
 
         //float *sample = 0;
         //for(size_t t = 0; t < AUDIO_REC_SAMPLES; t++){

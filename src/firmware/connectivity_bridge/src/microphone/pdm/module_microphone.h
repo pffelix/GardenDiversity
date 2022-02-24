@@ -7,8 +7,8 @@
 #include <stdlib.h>
 
 /* Read nordic id from the registers */
-#define PDM_CLK_PIN                         36
-#define PDM_DIN_PIN                         37
+#define PDM_CLK_PIN                         6 //28
+#define PDM_DIN_PIN                         5 //30
 
 /* Recording config */
 #define AUDIO_SAMPLING_FREQ                 16000

@@ -549,12 +549,12 @@ void main(void)
         * UART communication between nrf52840 and nrf9160
         */
 
-	uart_init();
+	uart_async_init_int16();
         char hey[] = "hey from 9160 \n";
         uint16_t hey_int16[] = {-9160, 9160, -1000, 1000, -32768, 32767};
         while(1){
                 //send_data(hey, sizeof(hey));
-                uart_send_data_int16(hey_int16, sizeof(hey_int16) / sizeof(int16_t));
+                uart_async_send_data_int16(hey_int16, sizeof(hey_int16) / sizeof(int16_t));
                 k_sleep(K_MSEC(1000));
         }
 
