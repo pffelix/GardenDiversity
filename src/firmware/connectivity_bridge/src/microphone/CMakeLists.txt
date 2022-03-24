@@ -6,3 +6,5 @@
 
 target_sources_ifdef(CONFIG_MODULE_MICROPHONE_PDM
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/pdm/module_microphone.c)
+target_sources_ifdef(CONFIG_MODULE_MICROPHONE_PDM
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/pdm/microphone_test.c)

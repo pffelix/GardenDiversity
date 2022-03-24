@@ -34,7 +34,7 @@ uint8_t *usb_update_sn_string_descriptor(void)
  * Microphone sensor
  */
 #include "module_microphone.h"
-
+#include "microphone_test.h"
  /*
  * UART communication between nrf52840 and nrf9160
  */
@@ -61,15 +61,17 @@ void main(void)
         /*
         * Microphone sensor
         */
-        
-        bool ret;
-        ret = microphone_inference_start();
-        if(ret){
-          printk("microphone inference started\n");
-          while(true){
-            ret = microphone_inference_record();
-          }
-        }
+        test_microphone();
+
+
+        //bool ret;
+        //ret = microphone_inference_start();
+        //if(ret){
+        //  printk("microphone inference started\n");
+        //  while(true){
+        //    ret = microphone_inference_record();
+        //  }
+        //}
         //int16_t* sample_ptr;
         //microphone_inference_get_data_pointer(1, sample_ptr);
         //uart_send_data_int16(sample_ptr, AUDIO_REC_SAMPLES);
