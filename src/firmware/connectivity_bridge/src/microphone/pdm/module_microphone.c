@@ -3,7 +3,8 @@
 #include <nrfx_pdm.h>
 #include <string.h>
 #include <zephyr.h>
-
+#include <device.h>
+#include <drivers/gpio.h>
 
 /* Buffers for receiving PDM mic data */
 static int16_t pdm_buffer_temp[2][AUDIO_DSP_SAMPLE_BUFFER_SIZE] = {0};
@@ -161,7 +162,7 @@ static bool do_sanity_check(void)
         printk("\r\nERR: No audio recorded, is the microphone connected?\r\n");
         nrfx_err_t err;
         err = nrfx_pdm_stop();
-        printk("kStateFinished");
+        printk("kStateFinished\n");
         return false;
     }
     else {
@@ -197,11 +198,18 @@ static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler, uint32_t samp
 {
     nrfx_err_t err;
 
+    // turn on PDM device
+    //const struct device* dev = device_get_binding("GPIO_0");
+    //gpio_pin_configure(dev, PDM_CLK_PIN, GPIO_OUTPUT_ACTIVE); 
+    //gpio_pin_configure(dev, PDM_DIN_PIN, GPIO_INPUT); 
+    //gpio_pin_set(dev, PDM_CLK_PIN, 1);
+    //k_msleep(100);
+
     /* PDM driver configuration */
     nrfx_pdm_config_t config_pdm = NRFX_PDM_DEFAULT_CONFIG(PDM_CLK_PIN, PDM_DIN_PIN);
     config_pdm.clock_freq = (nrf_pdm_freq_t)pdm_clock_calculate(sample_rate);
-    config_pdm.ratio = NRF_PDM_RATIO_80X;
-    config_pdm.edge = NRF_PDM_EDGE_LEFTRISING;
+    config_pdm.ratio = NRF_PDM_RATIO_64X; //NRF_PDM_RATIO_80X
+    config_pdm.edge = NRF_PDM_EDGE_LEFTRISING; // NRF_PDM_EDGE_LEFTRISING
     config_pdm.gain_l = NRF_PDM_GAIN_MAXIMUM;
     config_pdm.gain_r = NRF_PDM_GAIN_MAXIMUM;
 
@@ -234,10 +242,10 @@ bool microphone_inference_start(void)
         return false;
     }
 
-    k_msleep(1000);
+    k_msleep(2000);
     /* Since we have no feedback from the PDM sensor, do a sanity check on the data stream */
     if(do_sanity_check() == false) {
-        return false;
+        //return false;
     }
     err = nrfx_pdm_stop();
 

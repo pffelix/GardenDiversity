@@ -65,11 +65,14 @@ void main(void)
         bool ret;
         ret = microphone_inference_start();
         if(ret){
-          ret = microphone_inference_record();
+          printk("microphone inference started\n");
+          while(true){
+            ret = microphone_inference_record();
+          }
         }
-        int16_t* sample_ptr;
-        microphone_inference_get_data_pointer(1, sample_ptr);
-        uart_send_data_int16(sample_ptr, AUDIO_REC_SAMPLES);
+        //int16_t* sample_ptr;
+        //microphone_inference_get_data_pointer(1, sample_ptr);
+        //uart_send_data_int16(sample_ptr, AUDIO_REC_SAMPLES);
 
         //float *sample = 0;
         //for(size_t t = 0; t < AUDIO_REC_SAMPLES; t++){
@@ -79,11 +82,11 @@ void main(void)
         /*
         * Connectivity bridge
         */
-        if (event_manager_init()) {
-		printk("Event manager not initialized\n");
-	} else {
-		module_set_state(MODULE_STATE_READY);
-	}
+ //       if (event_manager_init()) {
+	//	printk("Event manager not initialized\n");
+	//} else {
+	//	module_set_state(MODULE_STATE_READY);
+	//}
 
 
 }

@@ -11,8 +11,8 @@
 #define PDM_DIN_PIN                         5 //30
 
 /* Recording config */
-#define AUDIO_SAMPLING_FREQ                 16000
-#define AUDIO_REC_MS                        100
+#define AUDIO_SAMPLING_FREQ                 24000 // 16667
+#define AUDIO_REC_MS                        50
 #define AUDIO_DSP_SAMPLE_LENGTH_MS          16
 
 /* Audio sampling config */
