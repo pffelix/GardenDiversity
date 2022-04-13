@@ -33,8 +33,8 @@ uint8_t *usb_update_sn_string_descriptor(void)
  /*
  * Microphone sensor
  */
-#include "module_microphone.h"
-#include "microphone_test.h"
+#include "pdm_microphone.h"
+#include "pdm_microphone_test.h"
  /*
  * UART communication between nrf52840 and nrf9160
  */

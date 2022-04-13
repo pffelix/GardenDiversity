@@ -1,5 +1,5 @@
-#ifndef K_MODULE_MICROPHONE_H
-#define K_MODULE_MICROPHONE_H
+#ifndef K_PDM_MICROPHONE_H
+#define K_PDM_MICROPHONE_H
 
 /* Include ----------------------------------------------------------------- */
 #include <stdint.h>

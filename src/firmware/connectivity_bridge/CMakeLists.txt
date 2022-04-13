@@ -18,6 +18,7 @@ zephyr_library_include_directories(
   src/events
   src/microphone/i2s
   src/microphone/pdm
+  src/microphone/spi
   src/uart
   )
 

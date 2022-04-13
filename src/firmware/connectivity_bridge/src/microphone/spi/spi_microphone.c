@@ -1,5 +1,5 @@
 /* Include ----------------------------------------------------------------- */
-#include "microphone_test.h"
+#include "spi_microphone.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -76,15 +76,18 @@ void nrfx_pdm_event_handler(nrfx_pdm_evt_t const *const p_evt)
 	}
 }
 
-static void pdm_init(void)
+void pdm_init(void)
 {
     nrfx_pdm_config_t pdm_config = NRFX_PDM_DEFAULT_CONFIG(CLK_PIN, DIN_PIN);
     //pdm_config.ratio = NRF_PDM_RATIO_64X; //NRF_PDM_RATIO_80X
     //pdm_config.edge = NRF_PDM_EDGE_LEFTRISING;
     //pdm_config.mode = NRF_PDM_MODE_STEREO;
 
-    nrfx_pdm_init(&pdm_config, nrfx_pdm_event_handler);
-   
+    IRQ_DIRECT_CONNECT(PDM_IRQn, 5, nrfx_pdm_irq_handler, 0);
+    irq_enable(PDM_IRQn);
+    nrfx_err_t err = nrfx_pdm_init(&pdm_config, nrfx_pdm_event_handler);
+    //printk("Error: %i\n", err);
+
 }
 
 void test_microphone(void)

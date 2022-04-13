@@ -1,0 +1,7 @@
+dmic_dev: &pdm0 {
+	compatible = "nordic,nrf-pdm";
+	status = "okay";
+	clk-pin = <6>;
+	din-pin = <5>;
+	clock-source = "PCLK32M_HFXO";
+};

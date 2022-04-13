@@ -13,7 +13,11 @@ comment "Microphone selection"
 config MODULE_MICROPHONE_PDM
 	bool "Module PDM microphone"
 	default y
-
+	
+config MODULE_MICROPHONE_SPI
+	bool "Module SPI microphone"
+	default y
+	
 endmenu
 
 endif
