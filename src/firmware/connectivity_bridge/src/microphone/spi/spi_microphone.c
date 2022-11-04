@@ -1,119 +1,97 @@
 /* Include ----------------------------------------------------------------- */
 #include "spi_microphone.h"
 
-#include <stdio.h>
-#include <stdint.h>
 #include <zephyr.h>
-#include <nrfx_power.h>
-#include <nrfx_pdm.h>
-#include <hal/nrf_pdm.h>
-//#include <nrfx_log.h>
-#define RMS_BUFFER_SIZE 4096
-#define MAX_SOUND_PRESSURE_LEVEL 120 /*<-- change for specific mic*/
+#include <sys/printk.h>
+#include <drivers/spi.h>
 
-#define PDM_BUF_ADDRESS 0x20000000 // buffer address in RAM
-#define PDM_BUF_SIZE 512
-#define CLK_PIN 6 /*<-- change for specific pin*/
-#define DIN_PIN 5 /*<-- change for specific pin*/
+#define DT_DRV_COMPAT nordic_nrf_spim
 
-int16_t pdm_buf[PDM_BUF_SIZE];
-int16_t rms_buffer[RMS_BUFFER_SIZE]; 
-uint16_t rms_buffer_cursor = 0;
+struct spi_cs_control spi_cs = {
+	.gpio_pin = DT_GPIO_PIN(DT_DRV_INST(0), cs_gpios),
+	.gpio_dt_flags = GPIO_ACTIVE_LOW,
+	.delay = 10,
+};
 
+static struct spi_config spi_cfg = {
+	.operation = SPI_WORD_SET(8) | SPI_TRANSFER_MSB |
+		     SPI_MODE_CPOL | SPI_MODE_CPHA | SPI_OP_MODE_MASTER,
+	.frequency = 1000000,
+	//.slave = 0,
+	.cs = &spi_cs,
+};
 
+const struct device * spi_dev;
 
-double sqrt(double value)
+static void spi_init(void)
 {
-	int i;
-	double sqrt = value / 3;
+	spi_cs.gpio_dev = device_get_binding(DT_GPIO_LABEL(DT_DRV_INST(0), cs_gpios));
 
-	if (value <= 0) {
-		return 0;
+	if (spi_cs.gpio_dev == NULL) {
+	    printk("Could not get gpio device\n");
+	} else {
+		printk("GPIO device: %s\n", DT_GPIO_LABEL(DT_DRV_INST(0), cs_gpios));
 	}
 
-	for (i = 0; i < 6; i++) {
-		sqrt = (sqrt + value / sqrt) / 2;
+	spi_dev = device_get_binding(DT_LABEL(DT_DRV_INST(0)));
+
+	if (spi_dev == NULL) {
+		printk("Could not get %s device\n", DT_LABEL(DT_DRV_INST(0)));
+		return;
+	} else {
+		printk("SPI Device: %s\n", DT_LABEL(DT_DRV_INST(0)));
+		printk("SPI CSN %d, MISO %d, MOSI %d, CLK %d\n",
+	       DT_GPIO_PIN(DT_DRV_INST(0), cs_gpios),
+	       DT_PROP(DT_DRV_INST(0), miso_pin),
+	       DT_PROP(DT_DRV_INST(0), mosi_pin),
+	       DT_PROP(DT_DRV_INST(0), sck_pin));		
 	}
-
-	return sqrt;
 }
 
-
-double calculate_rms(int16_t *buffer, uint16_t num_samples) {
-  	uint64_t sum = 0;
-
-  	for (uint16_t j = 0; j < num_samples; j++) {
-    	rms_buffer[rms_buffer_cursor] = buffer[j];
-  		rms_buffer_cursor = (rms_buffer_cursor + 1) % RMS_BUFFER_SIZE;
-  	}
-
-  	for (uint16_t j = 0; j < RMS_BUFFER_SIZE; j++) {
-    	sum += rms_buffer[j] * rms_buffer[j];
-  	}
-	double tosquirt = sum / RMS_BUFFER_SIZE;
-  	
-	return sqrt(tosquirt); // return sqrt(tosquirt)
-}
-
-void audio_callback(int16_t *buffer, uint16_t size) { 
-
-  	// Calculate RMS of last 250 ms 
-  	double rms = calculate_rms(buffer, size); 
-	printk("RMS value: %f\n", rms);
-}
-
-
-
-void nrfx_pdm_event_handler(nrfx_pdm_evt_t const *const p_evt)
+void spi_test_send(void)
 {
-	if (p_evt->buffer_requested) {
-		nrfx_pdm_buffer_set(pdm_buf, PDM_BUF_SIZE);						
-	}
-	if (p_evt->buffer_released != 0) {
-		
-		audio_callback(pdm_buf, PDM_BUF_SIZE);
-		
+	int err;
+	static uint8_t tx_buffer[2];
+	static uint8_t rx_buffer[2];
+
+	const struct spi_buf tx_buf = {
+		.buf = tx_buffer,
+		.len = sizeof(tx_buffer)
+	};
+	const struct spi_buf_set tx = {
+		.buffers = &tx_buf,
+		.count = 1
+	};
+
+	struct spi_buf rx_buf = {
+		.buf = rx_buffer,
+		.len = sizeof(rx_buffer),
+	};
+	const struct spi_buf_set rx = {
+		.buffers = &rx_buf,
+		.count = 1
+	};
+       
+        //err = gpio_pin_set(spi_cs.gpio_dev, spi_cs.gpio_pin, 0);
+	err = spi_transceive(spi_dev, &spi_cfg, &tx, &rx);
+        //err = gpio_pin_set(spi_cs.gpio_dev, spi_cs.gpio_pin, 1);
+
+	if (err) {
+		printk("SPI error: %d\n", err);
+	} else {
+		/* Connect MISO to MOSI for loopback */
+		printk("TX sent: %x\n", tx_buffer[0]);
+		printk("RX recv: %x\n", rx_buffer[0]);
+		tx_buffer[0]++;
 	}
 }
 
-void pdm_init(void)
+void spi_test()
 {
-    nrfx_pdm_config_t pdm_config = NRFX_PDM_DEFAULT_CONFIG(CLK_PIN, DIN_PIN);
-    //pdm_config.ratio = NRF_PDM_RATIO_64X; //NRF_PDM_RATIO_80X
-    //pdm_config.edge = NRF_PDM_EDGE_LEFTRISING;
-    //pdm_config.mode = NRF_PDM_MODE_STEREO;
-
-    IRQ_DIRECT_CONNECT(PDM_IRQn, 5, nrfx_pdm_irq_handler, 0);
-    irq_enable(PDM_IRQn);
-    nrfx_err_t err = nrfx_pdm_init(&pdm_config, nrfx_pdm_event_handler);
-    //printk("Error: %i\n", err);
-
-}
-
-void test_microphone(void)
-{
-	nrfx_err_t ret;
-	printk("Starting PDM program!\n");
-	printk("PDM Buffer size: %d\n", (PDM_BUF_SIZE * 4));
-	printk("PDM Starting Address: %x\n", PDM_BUF_ADDRESS);
-	pdm_init();
-
-	ret = nrfx_pdm_start();
-	if (ret == NRFX_SUCCESS)
-	{
-		printk("Pdm start was successfull\n");
+	printk("SPIM Example\n");	
+	spi_init();	
+	while (1) {
+		spi_test_send();
+		k_sleep(K_MSEC(1000));
 	}
-	else {
-		printk("Pdm start was NOT successfull\n");
-	}
-	
-	// ret = nrfx_pdm_stop();
-	// if (ret == NRFX_SUCCESS)
-	// {
-	// 	printk("Pdm stop was successfull\n");
-	// }
-	// else {
-	// 	printk("Pdm stop was NOT successfull\n");
-	// }
-
 }

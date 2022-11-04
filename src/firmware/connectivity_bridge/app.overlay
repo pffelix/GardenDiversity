@@ -16,3 +16,12 @@
 	};
 	
 };
+
+&spi3 {
+	compatible = "nordic,nrf-spim";
+	status = "okay";
+	sck-pin = <6>;
+	miso-pin = <5>;
+	mosi-pin = <27>;
+	cs-gpios = <&gpio0 26 0>;
+};
