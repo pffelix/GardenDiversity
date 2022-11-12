@@ -35,6 +35,7 @@ class Recorder:
         # or 0 bytes of data. The latter is possible because we are in nonblocking
         # mode.
 
+        print("recording start\n")
         total = 0
         while total < self.seconds * self.fs:
             l, data = inp.read()
@@ -42,6 +43,7 @@ class Recorder:
                 total += l
                 f.write(data)
                 time.sleep(.001)
+        print("recording stop\n")
 
     def audio_to_signal(self, convertofloat=True):
 
@@ -59,6 +61,7 @@ class Recorder:
         # or 0 bytes of data. The latter is possible because we are in nonblocking
         # mode.
 
+        print("recording start\n")
         total = 0
         sig = []
         while total < self.seconds * self.fs:
@@ -71,6 +74,7 @@ class Recorder:
                     sig_i = sig_i / 32768.0 if convertofloat is True else sig_i
                     sig.append(sig_i)
                 time.sleep(.001)
+        print("recording stop\n")
         return sig
 
     def split_signal(self, sig):

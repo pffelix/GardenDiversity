@@ -5,8 +5,7 @@ import time
 import math
 import operator
 import tflite_runtime.interpreter as tflite
-import os
-
+#from tensorflow import lite as tflite
 
 class Model:
 
@@ -24,7 +23,7 @@ class Model:
 
         # Load TFLite model and allocate tensors.
         modelpath = './model/BirdNET_6K_GLOBAL_MODEL.tflite'
-        self.INTERPRETER = tflite.Interpreter(model_path=modelpath, num_threads=2)
+        self.INTERPRETER = tflite.Interpreter(model_path=modelpath, num_threads=4)
         self.INTERPRETER.allocate_tensors()
 
         # Get input and output tensors.
@@ -64,20 +63,11 @@ class Model:
 
             # Make prediction
             p = self.predict([sig, mdata], sensitivity)
-    #        print("PPPPP",p)
-            self.HUMAN_DETECTED = False
 
-            # Catch if Human is recognized
-            for x in range(len(p)):
-                if "Human" in p[x][0]:
-                    self.HUMAN_DETECTED = True
+            # print("PPPPP",p)
 
             # Save result and timestamp
             pred_end = pred_start + 3.0
-
-            # If human detected set all detections to human to make sure voices are not saved
-            if self.HUMAN_DETECTED is True:
-                p = [('Human_Human', 0.0)] * 10
 
             detections[str(pred_start) + ';' + str(pred_end)] = p
 

@@ -11,7 +11,7 @@ if __name__ == '__main__':
     lat = 49.19
     lon = 11.1
     week = 40
-    sensitivity = 0.9
+    sensitivity = 1.0
 
     # runtime services
 
@@ -23,8 +23,9 @@ if __name__ == '__main__':
 
     # run periodically
 
-    main_recorder.audio_to_file()
+    # main_recorder.audio_to_file()
     sig = main_recorder.audio_to_signal()
     chunks = main_recorder.split_signal(sig)
     detections = main_model.analyze_audio_data(chunks, lat, lon, week, sensitivity, main_recorder.overlap)
+    a = 0
 
