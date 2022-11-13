@@ -16,7 +16,6 @@ class Modeler:
         self.OUTPUT_LAYER_INDEX = None
         self.MDATA_INPUT_INDEX = None
         self.CLASSES = None
-        self.HUMAN_DETECTED = None
 
     def load_model(self):
 
@@ -24,7 +23,12 @@ class Modeler:
 
         # Load TFLite model and allocate tensors.
         modelpath = './model/BirdNET_6K_GLOBAL_MODEL.tflite'
-        self.INTERPRETER = tflite.Interpreter(model_path=modelpath, num_threads=4)
+        try:
+            self.INTERPRETER = tflite.Interpreter(model_path=modelpath, num_threads=4)
+        except:
+            modelpath = '../model/BirdNET_6K_GLOBAL_MODEL.tflite'
+            self.INTERPRETER = tflite.Interpreter(model_path=modelpath, num_threads=4)
+
         self.INTERPRETER.allocate_tensors()
 
         # Get input and output tensors.
@@ -39,9 +43,15 @@ class Modeler:
         # Load labels
         self.CLASSES = []
         labelspath = './model/labels.txt'
-        with open(labelspath, 'r') as lfile:
-            for line in lfile.readlines():
-                self.CLASSES.append(line.replace('\n', ''))
+        try:
+            with open(labelspath, 'r') as lfile:
+                for line in lfile.readlines():
+                    self.CLASSES.append(line.replace('\n', ''))
+        except:
+            labelspath = '../model/labels.txt'
+            with open(labelspath, 'r') as lfile:
+                for line in lfile.readlines():
+                    self.CLASSES.append(line.replace('\n', ''))
 
         print('DONE!')
 

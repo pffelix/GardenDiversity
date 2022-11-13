@@ -17,6 +17,7 @@ if __name__ == '__main__':
     # runtime services
 
     # run once
+    print("script started")
     # Load model
     main_modeler = modeler.Modeler()
     main_recorder = recorder.Recorder()
