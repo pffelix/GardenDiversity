@@ -7,7 +7,8 @@ import operator
 import tflite_runtime.interpreter as tflite
 #from tensorflow import lite as tflite
 
-class Model:
+
+class Modeler:
 
     def __init__(self):
         self.INTERPRETER = None
