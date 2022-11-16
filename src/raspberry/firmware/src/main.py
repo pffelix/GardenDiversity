@@ -3,6 +3,7 @@
 import recorder
 import modeler
 import streamer
+import datetime
 
 if __name__ == '__main__':
 
@@ -11,7 +12,7 @@ if __name__ == '__main__':
 
     lat = 49.19
     lon = 11.1
-    week = 40
+    week = datetime.date.today().isocalendar().week
     sensitivity = 1.0
 
     # runtime services
