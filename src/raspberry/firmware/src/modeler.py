@@ -22,7 +22,7 @@ class Modeler:
         print('LOADING TF LITE MODEL...', end=' ')
 
         # Load TFLite model and allocate tensors.
-        modelpath = '/home/pi/firmware/model/BirdNET_6K_GLOBAL_MODEL.tflite'
+        modelpath = '/home/pi/GardenDiversity/src/raspberry/firmware/model/BirdNET_6K_GLOBAL_MODEL.tflite'
         self.INTERPRETER = tflite.Interpreter(model_path=modelpath, num_threads=4)
         self.INTERPRETER.allocate_tensors()
 
@@ -37,7 +37,7 @@ class Modeler:
 
         # Load labels
         self.CLASSES = []
-        labelspath = '/home/pi/firmware/model/labels.txt'
+        labelspath = '/home/pi/GardenDiversity/src/raspberry/firmware/model/labels.txt'
         with open(labelspath, 'r') as lfile:
             for line in lfile.readlines():
                 self.CLASSES.append(line.replace('\n', ''))
