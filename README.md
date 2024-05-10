@@ -1,5 +1,8 @@
 # GardenDiversity
 Biodiversity monitoring for gardening applications
+<p align="center">
+<img src="images/audio3d.png">
+</p>
 
 ## Nature is as connected as IoT
 The interest in local gardening has signifcantly risen after Covid-19. Recent surveys show that 80% of the European population are willing to privately contribute to conserve natural habitats. In addition, the new EU Biodiversity Strategy has been just announced aiming to put Europe’s biodiversity on a path to recovery by 2030. With over 150 million gardens in Europe, covering an area larger than all our national nature reserves put together, what we choose to do with our gardens really does matter for nature and climate.
