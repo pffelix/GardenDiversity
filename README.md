@@ -1,5 +1,4 @@
 # GardenDiversity
-Biodiversity monitoring for gardening applications
 <p align="center">
 <img src="folder.jpg">
 </p>
