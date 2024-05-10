@@ -1,7 +1,7 @@
 # GardenDiversity
 Biodiversity monitoring for gardening applications
 <p align="center">
-<img src="images/folder.jpg">
+<img src="folder.jpg">
 </p>
 
 ## Nature is as connected as IoT
