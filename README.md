@@ -1,6 +1,6 @@
 # GardenDiversity
 <p align="center">
-<img src="folder.jpg">
+<img src="images/folder.jpg">
 </p>
 
 ## Nature is as connected as IoT
@@ -14,3 +14,30 @@ What we are missing are effective possibilities to monitor the progresses we mak
 
 ## Our solution
 We are working on developing an IoT node that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The app is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
+
+## Hardware
+The setup requires following hardware:
+- Raspberry Pi Zero 2 W
+- Micro-SDHC Card
+- Witty Pi 4 Mini Real Time Clock and Power Management 
+- INMP 441 I2S Microphone
+- Waveshare 16120 Solar Power Management Module
+- Waveshare 19598 Solar Panel (18V 10W)
+- LP-785060 Lithium-Polymer battery, 3,7V, 2500mAh with 2 Pin JST Stecker 
+- USB-C to USB-A Cable
+
+1. Plug the Witty Pi 4 header on the Raspberry Pi Zero 2 W
+2. Connect the Witty Pi 4 header with the USB-C to USB-A Cable to the Solar Power Management Module
+3. Connect the Solar Power Management Module with the Solar Panel
+4. Connect the Witty Pi 4 header to the I2S Microphone
+5. GPIO 18 - Clock (SCK, BCK)
+6. GPIO 19 - Word Select (WS, LRCK)
+7. GPIO 20 - Data Line (DIN, SD)
+8. 3.3V DC Power - VDD
+9. Ground - GND
+10. Start the Raspberry Pi Zero 2 W over the button at the Witty Pi 4 header
+
+## Installation
+1. Install the Raspberry Pi Imager
+2. Install Raspberry Pi OS Lite(64 bit) on the SD Card with the Raspberry Pi Imager
+3. Insert the SD Card into the Raspberry Pi and let it boot
