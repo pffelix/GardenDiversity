@@ -11,6 +11,9 @@ In nature, everything’s interconnected – without trees, there are no flowers
 Recent research in ecological acoustics shows that the soundscape monitors very well the biodiversity of the underlying ecological system allowing to draw statistical inference how individual events impact each other.
  
 What we are missing are effective possibilities to monitor the progresses we make in improving the local biodiversity, pollution and environmental health. Having possiblities to account for ecological improvements, we can offer incentives to compensate private efforts into preserving local natural habitats and improving quality of life in urban districts.
+<p align="center">
+<img src="images/hardware_setup.jpg">
+</p>
 
 ## Our solution
 We are working on developing a low cost IoT node (less than 100 $) that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The app is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
