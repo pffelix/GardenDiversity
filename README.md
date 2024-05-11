@@ -50,7 +50,6 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 	sudo apt-get -y update
 	sudo apt-get -y upgrade
 	sudo apt install git -y
-	cd ~
 	git clone https://github.com/pffelix/GardenDiversity
 	```
 	
