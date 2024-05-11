@@ -16,7 +16,8 @@ What we are missing are effective possibilities to monitor the progresses we mak
 We are working on developing an IoT node that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The app is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
 
 ## Hardware
-The setup requires following hardware:
+
+### The setup requires following hardware:
 - Raspberry Pi Zero 2 W
 - Micro-SDHC Card
 - Witty Pi 4 Mini Real Time Clock and Power Management 
@@ -26,6 +27,7 @@ The setup requires following hardware:
 - LP-785060 Lithium-Polymer battery, 3,7V, 2500mAh with 2 Pin JST Stecker 
 - USB-C to USB-A Cable
 
+### To setup the hardware perform following steps:
 1. Plug the Witty Pi 4 header on the Raspberry Pi Zero 2 W
 2. Connect the Witty Pi 4 header with the USB-C to USB-A Cable to the Solar Power Management Module
 3. Connect the Solar Power Management Module with the Solar Panel
