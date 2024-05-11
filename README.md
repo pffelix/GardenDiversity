@@ -46,14 +46,14 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 3. Insert the SD Card into the Raspberry Pi and let it boot
 4. Login into the Pi (Default account: pi, Password: raspberry).
 5. Clone the project:
-	"
+	```
 	sudo apt-get -y update
 	sudo apt-get -y upgrade
 	sudo apt install git-all -y
 	git clone https://github.com/pffelix/GardenDiversity
-	"
+	```
 	
 6. Run the installation script
-	"
+	```
 	chmod +x GardenDiversity/src/firmware/installer.sh
-	"
+	```
