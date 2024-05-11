@@ -17,7 +17,7 @@ We are working on developing an IoT node that enables to monitor and improve the
 
 ## Hardware
 
-### The setup requires following hardware:
+### Following hardware is required for the IoT Node:
 - Raspberry Pi Zero 2 W
 - Micro-SDHC Card
 - Witty Pi 4 Mini Real Time Clock and Power Management 
@@ -31,15 +31,16 @@ We are working on developing an IoT node that enables to monitor and improve the
 1. Plug the Witty Pi 4 header on the Raspberry Pi Zero 2 W
 2. Connect the Witty Pi 4 header with the USB-C to USB-A Cable to the Solar Power Management Module
 3. Connect the Solar Power Management Module with the Solar Panel
-4. Connect the Witty Pi 4 header to the I2S Microphone
-5. GPIO 18 - Clock (SCK, BCK)
-6. GPIO 19 - Word Select (WS, LRCK)
-7. GPIO 20 - Data Line (DIN, SD)
-8. 3.3V DC Power - VDD
-9. Ground - GND
-10. Start the Raspberry Pi Zero 2 W over the button at the Witty Pi 4 header
+4. Connect the Li-Po battery with the Solar Power Management Module
+5. Connect the Witty Pi 4 header to the I2S Microphone
+6. GPIO 18 - Clock (SCK, BCK)
+7. GPIO 19 - Word Select (WS, LRCK)
+8. GPIO 20 - Data Line (DIN, SD)
+9. 3.3V DC Power - VDD
+10. Ground - GND
+11. Start the Raspberry Pi Zero 2 W over the button at the Witty Pi 4 header
 
-## Installation
+## Software Installation
 1. Install the Raspberry Pi Imager
-2. Install Raspberry Pi OS Lite(64 bit) on the SD Card with the Raspberry Pi Imager
+2. Install Raspberry Pi OS Lite (64 bit) on the SD Card with the Raspberry Pi Imager
 3. Insert the SD Card into the Raspberry Pi and let it boot
