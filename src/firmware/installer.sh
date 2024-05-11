@@ -10,6 +10,7 @@ sudo apt install git-all -y
 git clone https://github.com/pffelix/GardenDiversity
 
 # install Python
+sudo apt install python3.9
 sudo apt install python3-pip -y
 
 # install I2S microphone driver
