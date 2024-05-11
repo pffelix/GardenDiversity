@@ -15,7 +15,7 @@ What we are missing are effective possibilities to monitor the progresses we mak
 ## Our solution
 We are working on developing a low cost IoT node (less than 100 $) that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The app is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
 
-## Hardware
+## Hardware Setup
 
 ### Following hardware is required for the IoT Node:
 - Raspberry Pi Zero 2 W
@@ -49,7 +49,7 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 	```
 	sudo apt-get -y update
 	sudo apt-get -y upgrade
-	sudo apt install git-all -y
+	sudo apt install git -y
 	cd ~
 	git clone https://github.com/pffelix/GardenDiversity
 	```
