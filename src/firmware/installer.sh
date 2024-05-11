@@ -1,14 +1,3 @@
-# update system
-sudo apt-get -y update
-sudo apt-get -y upgrade
-cd ~
-
-# install Git
-sudo apt install git-all -y
-
-# clone Github repository
-git clone https://github.com/pffelix/GardenDiversity
-
 # install Python
 sudo apt install python3.9
 sudo apt install python3-pip -y
