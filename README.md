@@ -13,7 +13,7 @@ Recent research in ecological acoustics shows that the soundscape monitors very 
 What we are missing are effective possibilities to monitor the progresses we make in improving the local biodiversity, pollution and environmental health. Having possiblities to account for ecological improvements, we can offer incentives to compensate private efforts into preserving local natural habitats and improving quality of life in urban districts.
 
 ## Our solution
-We are working on developing an IoT node that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The app is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
+We are working on developing a solar powered, low cost IoT node (less than 100 $) that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The app is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
 
 ## Hardware
 
@@ -29,7 +29,7 @@ We are working on developing an IoT node that enables to monitor and improve the
 
 ### To setup the hardware perform following steps:
 1. Plug the Witty Pi 4 header on the Raspberry Pi Zero 2 W
-2. Connect the Witty Pi 4 header with the USB-C to USB-A Cable to the Solar Power Management Module
+2. Connect the Witty Pi 4 header with the USB-C to USB-A cable to the Solar Power Management Module
 3. Connect the Solar Power Management Module with the Solar Panel
 4. Connect the Li-Po battery with the Solar Power Management Module
 5. Connect the Witty Pi 4 header to the I2S Microphone
