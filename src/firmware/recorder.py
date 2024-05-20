@@ -72,10 +72,10 @@ class Recorder:
                 data = struct.unpack("i"*(len(data)//4), data)
                 for i in range(len(data) // 2):
                     sig_i = (data[2 * i] + data[2 * i + 1]) // 65536
-                    sig_i = sig_i / 32768.0 if convertofloat is True else sig_i
-                    sig.append(sig_i)
                     if self.log:
                         print(str(sig_i) + "\n")
+                    sig_i = sig_i / 32768.0 if convertofloat is True else sig_i
+                    sig.append(sig_i)
                 time.sleep(.001)
         print("recording stop")
         return sig
