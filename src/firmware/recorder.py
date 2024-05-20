@@ -15,7 +15,7 @@ class Recorder:
         self.overlap = 0.5
         self.card = 'dsnoop:CARD=sndrpii2scard,DEV=0'
         self.filename = "record.wav"
-        self.log = true
+        self.log = True
 
     def audio_to_file(self):
 
