@@ -31,7 +31,7 @@ Description=GardenDiversity Service
 [Service]
 Type=idle
 User=pi
-ExecStart=/usr/bin/python /home/pi/GardenDiversity/src/raspberry/firmware/src/main.py
+ExecStart=/usr/bin/python /home/pi/GardenDiversity/src/firmware/main.py
 
 [Install]
 WantedBy=multi-user.target" | sudo tee /lib/systemd/system/gardendiversity.service -a
