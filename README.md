@@ -61,4 +61,7 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 	chmod +x GardenDiversity/src/firmware/installer.sh
 	./GardenDiversity/src/firmware/installer.sh
 	```
-7. The installation script installs a service that regularly records an audio stream. After it the audio stream is processed with the BirdNET recognition system to detect avian vocalizations in the soundscape recording. Finally, the classified events are published as MQTT messages to a ThingSpeak Channel. The channel ID can be configured in the streamer.py file. 
+7. The installation script installs a service that runs the code main.py.
+8. Main.py regularly records an audio stream over I2S. To check whether the microphone is working, logging of the audio stream can be performed by setting a variable in recorder.py. 
+9. After it the audio stream is processed in modeler.py with the BirdNET recognition system to detect avian vocalizations in the soundscape recording. 
+10. Finally, the classified events are published as MQTT messages to a ThingSpeak Channel. The channel ID can be configured in the streamer.py file. 
