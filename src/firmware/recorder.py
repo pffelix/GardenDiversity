@@ -75,7 +75,7 @@ class Recorder:
                     sig_i = sig_i / 32768.0 if convertofloat is True else sig_i
                     sig.append(sig_i)
                     if self.log:
-                        print(sig_i + "\n")
+                        print(str(sig_i) + "\n")
                 time.sleep(.001)
         print("recording stop")
         return sig
