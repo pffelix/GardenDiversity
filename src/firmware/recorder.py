@@ -15,6 +15,7 @@ class Recorder:
         self.overlap = 0.5
         self.card = 'dsnoop:CARD=sndrpii2scard,DEV=0'
         self.filename = "record.wav"
+        self.log = true
 
     def audio_to_file(self):
 
@@ -73,6 +74,8 @@ class Recorder:
                     sig_i = (data[2 * i] + data[2 * i + 1]) // 65536
                     sig_i = sig_i / 32768.0 if convertofloat is True else sig_i
                     sig.append(sig_i)
+                    if self.log:
+                        print(sig_i + "\n")
                 time.sleep(.001)
         print("recording stop")
         return sig
