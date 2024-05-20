@@ -63,5 +63,5 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 	```
 7. The installation script installs a service that runs the source code main.py.
 8. The source code in main.py regularly records an audio stream over I2S. To check whether the microphone is working, logging of the loudness of the audio stream can be performed by setting a variable in recorder.py. 
-9. After it the audio stream is processed in modeler.py with the Tensorflow Lite BirdNET recognition model to detect avian vocalizations in the soundscape recording. 
+9. After it the audio stream is processed in modeler.py with the TensorFlow Lite BirdNET recognition model to detect avian vocalizations in the soundscape recording. 
 10. Finally, the classified events are published as MQTT messages to a ThingSpeak Channel. The channel ID can be configured in the streamer.py file. 
