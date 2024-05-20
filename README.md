@@ -45,7 +45,7 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 
 ## Software Installation
 1. Install the Raspberry Pi Imager
-2. Install Raspberry Pi OS Lite (64 bit) on the SD Card with the Raspberry Pi Imager
+2. Install Raspberry Pi OS Lite (64 bit, Debian Bullseye with Python 3.9) on the SD Card with the Raspberry Pi Imager
 3. Insert the SD Card into the Raspberry Pi and let it boot
 4. Login into the Pi
 5. Clone the project:
