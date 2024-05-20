@@ -15,7 +15,7 @@ cd ~
 
 # install Python modules
 pip3 install numpy
-sudo apt-get install libasound2-dev -y
+sudo apt install libasound2-dev -y
 pip3 install pyalsaaudio
 pip3 install paho-mqtt
 
