@@ -37,7 +37,7 @@ class Modeler:
 
         # Load labels
         self.CLASSES = []
-        labelspath = '/home/pi/GardenDiversity/src/raspberry/firmware/model/labels.txt'
+        labelspath = '/home/pi/GardenDiversity/src/model/labels.txt'
         with open(labelspath, 'r') as lfile:
             for line in lfile.readlines():
                 self.CLASSES.append(line.replace('\n', ''))
