@@ -23,7 +23,7 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 ### Following hardware is required for the IoT Node:
 - Raspberry Pi Zero 2 W
 - Micro-SDHC Card
-- INMP 441 I2S Microphone
+- I2S Microphone (e.g. INMP 441)
 
 ### Following hardware is optional for the IoT Node:
 - Witty Pi 4 Mini Real Time Clock and Power Management 
