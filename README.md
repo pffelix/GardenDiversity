@@ -23,8 +23,10 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 ### Following hardware is required for the IoT Node:
 - Raspberry Pi Zero 2 W
 - Micro-SDHC Card
-- Witty Pi 4 Mini Real Time Clock and Power Management 
 - INMP 441 I2S Microphone
+
+### Following hardware is optional for the IoT Node:
+- Witty Pi 4 Mini Real Time Clock and Power Management 
 - Waveshare 16120 Solar Power Management Module
 - Waveshare 19598 Solar Panel (18V 10W)
 - LP-785060 Lithium-Polymer battery, 3,7V, 2500mAh with 2 Pin JST connector 
