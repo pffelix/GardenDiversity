@@ -16,7 +16,7 @@ What we are missing are effective possibilities to monitor the progresses we mak
 </p>
 
 ## Our solution
-We are working on developing a low cost IoT node (less than 100 $) that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The node is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity. We are currently ramping up the project and search for development partners.
+We are working on developing a low cost IoT node (less than 100 $) that enables to monitor and improve the local biodiversity over time. The node runs standalone on solar power and can be placed inside the own garden. It measures the soundscape of the garden environment with neural networks and classifies how it affects the biodiversity. The node is controllable by a smartphone and provide’s smart analytics to prevent negative effects, as garden pests. By combining the IoT node with a recommender engine, we send notices how seasonal gardening measures can improve the measured biodiversity.
 
 ## Hardware Setup
 
