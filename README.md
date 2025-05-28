@@ -37,13 +37,13 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 2. Connect the Witty Pi 4 header with the USB-C to USB-A cable to the Solar Power Management Module (optional)
 3. Connect the Solar Power Management Module with the Solar Panel (optional)
 4. Connect the Li-Po battery with the Solar Power Management Module (optional)
-5. Connect the Witty Pi 4 header to the I2S Microphone
+5. Connect the Rasperry Pi (or Witty Pi 4 header) to the I2S Microphone
 6. GPIO 18 - Clock (SCK, BCK)
 7. GPIO 19 - Word Select (WS, LRCK)
 8. GPIO 20 - Data Line (DIN, SD)
 9. 3.3V DC Power - VDD
 10. Ground - GND
-11. Start the Raspberry Pi Zero 2 W over the button at the Witty Pi 4 header
+11. Start the Raspberry Pi Zero 2 W (over the button at the Witty Pi 4 header)
 
 ## Software Installation
 1. Install the Raspberry Pi Imager
