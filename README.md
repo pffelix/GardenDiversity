@@ -33,10 +33,10 @@ We are working on developing a low cost IoT node (less than 100 $) that enables 
 - USB-C to USB-A Cable
 
 ### To setup the hardware perform following steps:
-1. Plug the Witty Pi 4 header on the Raspberry Pi Zero 2 W
-2. Connect the Witty Pi 4 header with the USB-C to USB-A cable to the Solar Power Management Module
-3. Connect the Solar Power Management Module with the Solar Panel
-4. Connect the Li-Po battery with the Solar Power Management Module
+1. Plug the Witty Pi 4 header on the Raspberry Pi Zero 2 W (optional)
+2. Connect the Witty Pi 4 header with the USB-C to USB-A cable to the Solar Power Management Module (optional)
+3. Connect the Solar Power Management Module with the Solar Panel (optional)
+4. Connect the Li-Po battery with the Solar Power Management Module (optional)
 5. Connect the Witty Pi 4 header to the I2S Microphone
 6. GPIO 18 - Clock (SCK, BCK)
 7. GPIO 19 - Word Select (WS, LRCK)
